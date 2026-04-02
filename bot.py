@@ -3,7 +3,7 @@ import requests
 import json
 
 app = Flask(__name__)
-TOKEN = "8715598722:AAFNcIlsJvYPYu-zkigHinOL6jCKmD6V8W4"
+TOKEN = "8715598722:AAG6sKN40FOPPQIC-cPF611LZ5A2Z01mDzk"
 ADMIN_ID = 1544353769
 
 def send_message(chat_id, text, keyboard=None):
