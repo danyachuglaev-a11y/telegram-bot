@@ -1,5 +1,6 @@
 from flask import Flask, request
 import requests
+import json  # <---------- ЭТО ДОБАВИЛ!
 from datetime import datetime
 
 app = Flask(__name__)
