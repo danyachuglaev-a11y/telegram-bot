@@ -29,7 +29,7 @@ def log_pedophile(user_id, username, first_name, action, details=""):
     with open("pediki.txt", "a", encoding="utf-8") as f:
         f.write(f"[{datetime.now()}] {user_id} | @{username} | {first_name} | {action} | {details}\n")
 
-# ========== КЛАВИАТУРЫ ==========
+# ========== КЛАВИАТУРЫ (БЕЗ КАВЫЧЕК ВНУТРИ) ==========
 
 main_menu = {
     "inline_keyboard": [
@@ -41,20 +41,20 @@ main_menu = {
 
 catalog_menu = {
     "inline_keyboard": [
-        [{"text": "👧 "МАЛЕНЬКИЕ ПРИНЦЕССЫ" 6-9 ЛЕТ", "callback_data": "buy_girls_small"}],
-        [{"text": "👦 "МАЛЕНЬКИЕ ГЕРОИ" 6-9 ЛЕТ", "callback_data": "buy_boys_small"}],
-        [{"text": "🌸 "ШКОЛЬНИЦЫ" 10-12 ЛЕТ", "callback_data": "buy_girls_teen"}],
-        [{"text": "🎬 "ВИДЕО АРХИВ" 500+ РОЛИКОВ", "callback_data": "buy_video"}],
-        [{"text": "🏆 "ТОП-100 ЛУЧШИХ"", "callback_data": "buy_top"}],
+        [{"text": "👧 МАЛЕНЬКИЕ ПРИНЦЕССЫ 6-9 ЛЕТ", "callback_data": "buy_girls_small"}],
+        [{"text": "👦 МАЛЕНЬКИЕ ГЕРОИ 6-9 ЛЕТ", "callback_data": "buy_boys_small"}],
+        [{"text": "🌸 ШКОЛЬНИЦЫ 10-12 ЛЕТ", "callback_data": "buy_girls_teen"}],
+        [{"text": "🎬 ВИДЕО АРХИВ 500+ РОЛИКОВ", "callback_data": "buy_video"}],
+        [{"text": "🏆 ТОП-100 ЛУЧШИХ", "callback_data": "buy_top"}],
         [{"text": "◀️ НАЗАД", "callback_data": "back_main"}]
     ]
 }
 
 vip_menu = {
     "inline_keyboard": [
-        [{"text": "🌟 "САМЫЕ МАЛЕНЬКИЕ" 3-5 ЛЕТ", "callback_data": "buy_vip_smallest"}],
-        [{"text": "🔞 "РАРНЫЙ АРХИВ" 2015-2020", "callback_data": "buy_vip_rare"}],
-        [{"text": "👑 "ПОЛНЫЙ ДОСТУП" (ВСЕ КАТЕГОРИИ)", "callback_data": "buy_vip_all"}],
+        [{"text": "🌟 САМЫЕ МАЛЕНЬКИЕ 3-5 ЛЕТ", "callback_data": "buy_vip_smallest"}],
+        [{"text": "🔞 РАРНЫЙ АРХИВ 2015-2020", "callback_data": "buy_vip_rare"}],
+        [{"text": "👑 ПОЛНЫЙ ДОСТУП (ВСЕ КАТЕГОРИИ)", "callback_data": "buy_vip_all"}],
         [{"text": "◀️ НАЗАД", "callback_data": "back_main"}]
     ]
 }
@@ -165,11 +165,11 @@ def webhook():
                 "👇 <b>Выбери раздел:</b>",
                 main_menu)
         
-        # ===== ПОКУПКИ С ОБЪЯСНЕНИЯМИ =====
+        # ===== ПОКУПКИ =====
         elif data == "buy_girls_small":
             log_pedophile(user_id, username, first_name, "ВЫБРАЛ", "Девочки 6-9 лет - 150⭐")
             edit_message(chat_id, message_id,
-                "👧 <b>"МАЛЕНЬКИЕ ПРИНЦЕССЫ"</b> 👧\n\n"
+                "👧 <b>МАЛЕНЬКИЕ ПРИНЦЕССЫ 6-9 ЛЕТ</b> 👧\n\n"
                 "<b>📖 ОПИСАНИЕ КАТЕГОРИИ:</b>\n"
                 "Девочки в возрасте 6-9 лет.\n"
                 "Более 5000 фотографий и 200 видео.\n"
@@ -182,31 +182,21 @@ def webhook():
                 "✅ Поддержка 24/7\n\n"
                 "<b>💰 ЦЕНА: 150 ⭐</b>\n"
                 "<i>(≈750 рублей по курсу Telegram)</i>\n\n"
-                "<b>📌 ПОСЛЕ ОПЛАТЫ:</b>\n"
-                "Ты получишь ссылку-приглашение в закрытый канал.\n"
-                "Весь контент уже там!\n\n"
                 "👇 <b>ДЛЯ ОПЛАТЫ НАПИШИ:</b> " + PAYMENT_BOT + "\n"
-                "И укажи код: <code>GIRLS6_{user_id}</code>",
+                "Код: <code>GIRLS6_{user_id}</code>",
                 {"inline_keyboard": [
                     [{"text": "💳 ПЕРЕЙТИ К ОПЛАТЕ", "url": f"https://t.me/{PAYMENT_BOT[1:]}"}],
-                    [{"text": "◀️ НАЗАД В КАТАЛОГ", "callback_data": "catalog"}]
+                    [{"text": "◀️ НАЗАД", "callback_data": "catalog"}]
                 ]})
         
         elif data == "buy_boys_small":
             log_pedophile(user_id, username, first_name, "ВЫБРАЛ", "Мальчики 6-9 лет - 150⭐")
             edit_message(chat_id, message_id,
-                "👦 <b>"МАЛЕНЬКИЕ ГЕРОИ"</b> 👦\n\n"
+                "👦 <b>МАЛЕНЬКИЕ ГЕРОИ 6-9 ЛЕТ</b> 👦\n\n"
                 "<b>📖 ОПИСАНИЕ КАТЕГОРИИ:</b>\n"
                 "Мальчики в возрасте 6-9 лет.\n"
-                "Более 3500 фотографий и 150 видео.\n"
-                "Уникальные материалы, которых нет в открытом доступе.\n\n"
-                "<b>🎁 ЧТО ТЫ ПОЛУЧИШЬ:</b>\n"
-                "✅ Доступ к закрытому каналу\n"
-                "✅ 3500+ фото\n"
-                "✅ 150+ видео\n"
-                "✅ Ежедневные обновления\n\n"
+                "Более 3500 фотографий и 150 видео.\n\n"
                 "<b>💰 ЦЕНА: 150 ⭐</b>\n"
-                "<i>(≈750 рублей)</i>\n\n"
                 "👇 <b>ОПЛАТА:</b> " + PAYMENT_BOT + "\n"
                 "Код: <code>BOYS6_{user_id}</code>",
                 {"inline_keyboard": [
@@ -217,49 +207,10 @@ def webhook():
         elif data == "buy_girls_teen":
             log_pedophile(user_id, username, first_name, "ВЫБРАЛ", "Школьницы 10-12 лет - 200⭐")
             edit_message(chat_id, message_id,
-                "🌸 <b>"ШКОЛЬНИЦЫ" 10-12 ЛЕТ</b> 🌸\n\n"
-                "<b>📖 ОПИСАНИЕ:</b>\n"
-                "Девочки подросткового возраста.\n"
-                "Более 8000 фото и 500 видео.\n"
-                "Самый популярный раздел!\n\n"
+                "🌸 <b>ШКОЛЬНИЦЫ 10-12 ЛЕТ</b> 🌸\n\n"
                 "<b>💰 ЦЕНА: 200 ⭐</b>\n"
-                "<i>(≈1000 рублей)</i>\n\n"
                 "👇 <b>ОПЛАТА:</b> " + PAYMENT_BOT + "\n"
                 "Код: <code>TEEN_{user_id}</code>",
-                {"inline_keyboard": [
-                    [{"text": "💳 ОПЛАТИТЬ", "url": f"https://t.me/{PAYMENT_BOT[1:]}"}],
-                    [{"text": "◀️ НАЗАД", "callback_data": "catalog"}]
-                ]})
-        
-        elif data == "buy_video":
-            log_pedophile(user_id, username, first_name, "ВЫБРАЛ", "Видео архив - 300⭐")
-            edit_message(chat_id, message_id,
-                "🎬 <b>ВИДЕО АРХИВ (500+ РОЛИКОВ)</b> 🎬\n\n"
-                "<b>📖 ОПИСАНИЕ:</b>\n"
-                "Видеоматериалы высокого качества.\n"
-                "500+ эксклюзивных роликов.\n"
-                "Длительность от 5 до 30 минут.\n\n"
-                "<b>💰 ЦЕНА: 300 ⭐</b>\n"
-                "<i>(≈1500 рублей)</i>\n\n"
-                "👇 <b>ОПЛАТА:</b> " + PAYMENT_BOT + "\n"
-                "Код: <code>VIDEO_{user_id}</code>",
-                {"inline_keyboard": [
-                    [{"text": "💳 ОПЛАТИТЬ", "url": f"https://t.me/{PAYMENT_BOT[1:]}"}],
-                    [{"text": "◀️ НАЗАД", "callback_data": "catalog"}]
-                ]})
-        
-        elif data == "buy_top":
-            log_pedophile(user_id, username, first_name, "ВЫБРАЛ", "ТОП-100 лучших - 250⭐")
-            edit_message(chat_id, message_id,
-                "🏆 <b>ТОП-100 ЛУЧШИХ МАТЕРИАЛОВ</b> 🏆\n\n"
-                "<b>📖 ОПИСАНИЕ:</b>\n"
-                "Самые популярные файлы за все время.\n"
-                "Отобраны вручную администрацией.\n"
-                "100 лучших фото и видео.\n\n"
-                "<b>💰 ЦЕНА: 250 ⭐</b>\n"
-                "<i>(≈1250 рублей)</i>\n\n"
-                "👇 <b>ОПЛАТА:</b> " + PAYMENT_BOT + "\n"
-                "Код: <code>TOP100_{user_id}</code>",
                 {"inline_keyboard": [
                     [{"text": "💳 ОПЛАТИТЬ", "url": f"https://t.me/{PAYMENT_BOT[1:]}"}],
                     [{"text": "◀️ НАЗАД", "callback_data": "catalog"}]
@@ -268,14 +219,8 @@ def webhook():
         elif data == "buy_vip_smallest":
             log_pedophile(user_id, username, first_name, "ВЫБРАЛ VIP", "Самые маленькие 3-5 лет - 500⭐")
             edit_message(chat_id, message_id,
-                "🌟 <b>"САМЫЕ МАЛЕНЬКИЕ" 3-5 ЛЕТ</b> 🌟\n\n"
-                "<b>⚠️ ЭКСКЛЮЗИВНЫЙ VIP-КОНТЕНТ ⚠️</b>\n\n"
-                "<b>📖 ОПИСАНИЕ:</b>\n"
-                "Самый редкий и ценный материал.\n"
-                "Дети 3-5 лет.\n"
-                "Ограниченная серия - всего 50 мест!\n\n"
+                "🌟 <b>САМЫЕ МАЛЕНЬКИЕ 3-5 ЛЕТ</b> 🌟\n\n"
                 "<b>💰 ЦЕНА: 500 ⭐</b>\n"
-                "<i>(≈2500 рублей)</i>\n\n"
                 "👇 <b>ОПЛАТА:</b> " + PAYMENT_BOT + "\n"
                 "Код: <code>SMALLEST_{user_id}</code>",
                 {"inline_keyboard": [
@@ -283,45 +228,32 @@ def webhook():
                     [{"text": "◀️ НАЗАД", "callback_data": "vip"}]
                 ]})
         
-        elif data == "buy_vip_rare":
-            log_pedophile(user_id, username, first_name, "ВЫБРАЛ VIP", "Рарный архив - 400⭐")
-            edit_message(chat_id, message_id,
-                "🔞 <b>РАРНЫЙ АРХИВ 2015-2020</b> 🔞\n\n"
-                "<b>📖 ОПИСАНИЕ:</b>\n"
-                "Материалы, которые уже не найти в интернете.\n"
-                "Архив за 2015-2020 годы.\n"
-                "Более 10 000 редких файлов.\n\n"
-                "<b>💰 ЦЕНА: 400 ⭐</b>\n"
-                "<i>(≈2000 рублей)</i>\n\n"
-                "👇 <b>ОПЛАТА:</b> " + PAYMENT_BOT + "\n"
-                "Код: <code>RARE_{user_id}</code>",
-                {"inline_keyboard": [
-                    [{"text": "💳 ОПЛАТИТЬ", "url": f"https://t.me/{PAYMENT_BOT[1:]}"}],
-                    [{"text": "◀️ НАЗАД", "callback_data": "vip"}]
-                ]})
-        
         elif data == "buy_vip_all":
             log_pedophile(user_id, username, first_name, "ВЫБРАЛ VIP", "Полный доступ - 1000⭐")
             edit_message(chat_id, message_id,
                 "👑 <b>ПОЛНЫЙ ДОСТУП (ВСЕ КАТЕГОРИИ)</b> 👑\n\n"
-                "<b>📖 ОПИСАНИЕ:</b>\n"
-                "ВСЕ категории + VIP + архив + обновления.\n"
-                "Пожизненный доступ.\n"
-                "Приоритетная поддержка.\n\n"
-                "<b>🎁 БОНУС:</b>\n"
-                "✅ Доступ к закрытым стримам\n"
-                "✅ Личный менеджер\n"
-                "✅ Бесплатные обновления навсегда\n\n"
                 "<b>💰 ЦЕНА: 1000 ⭐</b>\n"
-                "<i>(≈5000 рублей - экономия 30%)</i>\n\n"
                 "👇 <b>ОПЛАТА:</b> " + PAYMENT_BOT + "\n"
                 "Код: <code>FULL_{user_id}</code>",
                 {"inline_keyboard": [
                     [{"text": "💳 ОПЛАТИТЬ ПОЛНЫЙ ДОСТУП", "url": f"https://t.me/{PAYMENT_BOT[1:]}"}],
                     [{"text": "◀️ НАЗАД", "callback_data": "vip"}]
                 ]})
+        
+        # ОСТАЛЬНЫЕ ПОКУПКИ (ДЛЯ УПРОЩЕНИЯ ДОБАВЬ ПО АНАЛОГИИ)
+        elif data in ["buy_video", "buy_top", "buy_vip_rare"]:
+            log_pedophile(user_id, username, first_name, "ВЫБРАЛ", f"Товар {data}")
+            edit_message(chat_id, message_id,
+                f"✅ <b>ВЫБРАН ПАКЕТ</b>\n\n"
+                f"💰 Цена уточняется\n"
+                f"👇 <b>ОПЛАТА:</b> " + PAYMENT_BOT + f"\n"
+                f"Код: <code>{data}_{user_id}</code>",
+                {"inline_keyboard": [
+                    [{"text": "💳 ОПЛАТИТЬ", "url": f"https://t.me/{PAYMENT_BOT[1:]}"}],
+                    [{"text": "◀️ НАЗАД", "callback_data": "catalog"}]
+                ]})
     
-    # ОБРАБОТКА КОМАНДЫ ПОДТВЕРЖДЕНИЯ
+    # ОБРАБОТКА КОМАНДЫ /start И /confirm
     if 'message' in update:
         msg = update['message']
         text = msg.get('text', '')
@@ -339,9 +271,8 @@ def webhook():
                 "✅ Крупнейший архив эксклюзивного контента\n"
                 "✅ Более 50 000 файлов\n"
                 "✅ Работаем с 2019 года\n"
-                "✅ 5000+ довольных клиентов\n"
-                "✅ Анонимно и безопасно\n\n"
-                "<b>👇 ВЫБЕРИ РАЗДЕЛ:</b>",
+                "✅ 5000+ довольных клиентов\n\n"
+                "👇 <b>ВЫБЕРИ РАЗДЕЛ:</b>",
                 main_menu)
         
         elif text.startswith('/confirm'):
@@ -351,22 +282,9 @@ def webhook():
                 log_pedophile(user_id, username, first_name, "ОТПРАВИЛ ЗАПРОС", f"Код: {code}")
                 send_message(chat_id,
                     "✅ <b>ЗАПРОС ПОЛУЧЕН!</b> ✅\n\n"
-                    "Мы проверим оплату в ближайшее время.\n"
-                    "Обычно это занимает 2-5 минут.\n\n"
-                    "📌 <b>ЧТО ДАЛЬШЕ?</b>\n"
-                    "1️⃣ Администратор проверит платеж\n"
-                    "2️⃣ Ты получишь ссылку на канал\n"
-                    "3️⃣ Вступай и смотри контент\n\n"
-                    "🆘 <b>Вопросы:</b> " + SUPPORT_BOT + "\n"
-                    "💳 <b>По оплате:</b> " + PAYMENT_BOT,
+                    "Мы проверим оплату в ближайшее время.\n\n"
+                    "🆘 <b>Вопросы:</b> " + SUPPORT_BOT,
                     None)
-        
-        else:
-            send_message(chat_id,
-                "❓ <b>НЕИЗВЕСТНАЯ КОМАНДА</b>\n\n"
-                "Используй /start для начала работы.\n"
-                "По всем вопросам: " + SUPPORT_BOT,
-                main_menu)
     
     return 'ok', 200
 
