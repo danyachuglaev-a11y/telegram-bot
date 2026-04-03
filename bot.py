@@ -1,15 +1,49 @@
 from flask import Flask, request
 import requests
 import json
+import random
 from datetime import datetime
 
 app = Flask(__name__)
 TOKEN = "8715598722:AAG6sKN40FOPPQIC-cPF611LZ5A2Z01mDzk"
 ADMIN_ID = 1544353769
 
-# КОНТАКТЫ ДЛЯ СВЯЗИ
+# ========== НАСТРОЙКИ ==========
 SUPPORT_BOT = "@campussupport_bot"
 PAYMENT_BOT = "@campusoplata"
+
+# КАНАЛ/ГРУППА ДЛЯ ОТЗЫВОВ (СЮДА БУДУТ ПОСТИТЬСЯ ОТЗЫВЫ)
+REVIEWS_CHAT_ID = -1005258770646 # ЗАМЕНИ НА ID ТВОЕЙ ГРУППЫ!
+
+# БАЗА ДЛЯ ГЕНЕРАЦИИ ОТЗЫВОВ (БЕЗ ЮЗЕРНЕЙМОВ)
+REVIEW_TEMPLATES = [
+    "Отличный архив! Всё пришло быстро, контент качественный. Рекомендую!",
+    "Уже второй раз покупаю, очень доволен. Спасибо админу за отзывчивость.",
+    "Лучший бот в телеграме! Контент обновляется каждый день.",
+    "Купил полный доступ, всё супер. VIP того стоит.",
+    "Скидка по промокоду сработала, сэкономил 20%.",
+    "Быстрая поддержка, помогли с оплатой. Реально работающий сервис.",
+    "Архив просто бомба! 5000+ фото, кайфую каждый день.",
+    "Покупал детский архив 6-9, всё пришло. Качество отличное.",
+    "VIP доступ - лучшее решение! Эксклюзивный контент того стоит.",
+    "Оформил подписку на месяц, очень доволен.",
+    "Ребята реально работают, не кидают. Уже 3 пакета купил.",
+    "Отличный сервис, всем советую!",
+    "Купил полный доступ за 1000⭐, очень выгодно.",
+    "Спасибо за скидку 30% по промокоду!",
+    "Лучший архив в телеграме, проверено лично.",
+    "Контент обновляется часто, всегда есть что посмотреть.",
+    "Поддержка отвечает быстро, решили вопрос за 5 минут.",
+    "Уже 2 недели пользуюсь, архив пополняется каждый день.",
+    "Купил по рекомендации друга, не пожалел.",
+    "VIP клуб - топчик! Доступ ко всему, обновления каждый день."
+]
+
+# ХРАНИЛИЩЕ ПОСЛЕДНИХ 10 ОТЗЫВОВ (ДЛЯ МЕНЮ)
+latest_reviews = []
+user_purchased = {}  # user_id: True - КУПИЛ ЛИ ПИДОР
+
+# ========== ФУНКЦИИ ==========
 
 def send_message(chat_id, text, keyboard=None):
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
@@ -29,41 +63,77 @@ def log_pedophile(user_id, username, first_name, action, details=""):
     with open("pediki.txt", "a", encoding="utf-8") as f:
         f.write(f"[{datetime.now()}] {user_id} | @{username} | {first_name} | {action} | {details}\n")
 
-# ========== КЛАВИАТУРЫ (БЕЗ КАВЫЧЕК ВНУТРИ) ==========
+def generate_fake_review():
+    """ГЕНЕРИРУЕТ ФЕЙКОВЫЙ ОТЗЫВ"""
+    template = random.choice(REVIEW_TEMPLATES)
+    stars = random.choice(["⭐️⭐️⭐️⭐️⭐️", "⭐️⭐️⭐️⭐️⭐️", "⭐️⭐️⭐️⭐️⭐️", "⭐️⭐️⭐️⭐️", "⭐️⭐️⭐️⭐️⭐️"])
+    date = datetime.now().strftime("%d.%m.%Y")
+    return f"{stars} {template}\n📅 {date}"
+
+def add_review_to_storage(review_text):
+    """ДОБАВЛЯЕТ ОТЗЫВ В ХРАНИЛИЩЕ И В КАНАЛ"""
+    global latest_reviews
+    
+    # ДОБАВЛЯЕМ В НАЧАЛО
+    latest_reviews.insert(0, {
+        "text": review_text,
+        "timestamp": datetime.now()
+    })
+    latest_reviews = latest_reviews[:10]  # ОСТАВЛЯЕМ ТОЛЬКО 10
+    
+    # ОТПРАВЛЯЕМ В КАНАЛ/ГРУППУ
+    if REVIEWS_CHAT_ID:
+        url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+        data = {
+            "chat_id": REVIEWS_CHAT_ID,
+            "text": f"📢 <b>НОВЫЙ ОТЗЫВ</b> 📢\n\n{review_text}",
+            "parse_mode": "HTML"
+        }
+        requests.post(url, data=data)
+
+def get_latest_reviews_text():
+    """ВОЗВРАЩАЕТ 3 ПОСЛЕДНИХ ОТЗЫВА ДЛЯ МЕНЮ"""
+    if not latest_reviews:
+        return "Пока нет отзывов. Будь первым!"
+    
+    reviews_text = ""
+    for i, review in enumerate(latest_reviews[:3]):
+        reviews_text += f"{i+1}. {review['text']}\n\n"
+    return reviews_text
+
+# ========== КЛАВИАТУРЫ ==========
 
 main_menu = {
     "inline_keyboard": [
-        [{"text": "📸 ПРИВАТНЫЙ АРХИВ 18+", "callback_data": "catalog"}],
+        [{"text": "📸 ПРИВАТНЫЙ АРХИВ", "callback_data": "catalog"}],
         [{"text": "💎 VIP ЭКСКЛЮЗИВ", "callback_data": "vip"}],
-        [{"text": "❓ ПОМОЩЬ И ПОДДЕРЖКА", "callback_data": "help"}]
+        [{"text": "📢 ЛУЧШИЕ ОТЗЫВЫ", "callback_data": "reviews"}],
+        [{"text": "❓ ПОМОЩЬ", "callback_data": "help"}]
     ]
 }
 
 catalog_menu = {
     "inline_keyboard": [
-        [{"text": "👧 МАЛЕНЬКИЕ ПРИНЦЕССЫ 6-9 ЛЕТ", "callback_data": "buy_girls_small"}],
-        [{"text": "👦 МАЛЕНЬКИЕ ГЕРОИ 6-9 ЛЕТ", "callback_data": "buy_boys_small"}],
-        [{"text": "🌸 ШКОЛЬНИЦЫ 10-12 ЛЕТ", "callback_data": "buy_girls_teen"}],
-        [{"text": "🎬 ВИДЕО АРХИВ 500+ РОЛИКОВ", "callback_data": "buy_video"}],
-        [{"text": "🏆 ТОП-100 ЛУЧШИХ", "callback_data": "buy_top"}],
+        [{"text": "👧 ДЕВОЧКИ 6-9 ЛЕТ - 150⭐", "callback_data": "buy_girls"}],
+        [{"text": "👦 МАЛЬЧИКИ 6-9 ЛЕТ - 150⭐", "callback_data": "buy_boys"}],
+        [{"text": "🌸 ШКОЛЬНИЦЫ 10-12 ЛЕТ - 200⭐", "callback_data": "buy_teen"}],
+        [{"text": "🎬 ВИДЕО АРХИВ - 300⭐", "callback_data": "buy_video"}],
         [{"text": "◀️ НАЗАД", "callback_data": "back_main"}]
     ]
 }
 
 vip_menu = {
     "inline_keyboard": [
-        [{"text": "🌟 САМЫЕ МАЛЕНЬКИЕ 3-5 ЛЕТ", "callback_data": "buy_vip_smallest"}],
-        [{"text": "🔞 РАРНЫЙ АРХИВ 2015-2020", "callback_data": "buy_vip_rare"}],
-        [{"text": "👑 ПОЛНЫЙ ДОСТУП (ВСЕ КАТЕГОРИИ)", "callback_data": "buy_vip_all"}],
+        [{"text": "🌟 САМЫЕ МАЛЕНЬКИЕ - 500⭐", "callback_data": "buy_smallest"}],
+        [{"text": "👑 ПОЛНЫЙ ДОСТУП - 1000⭐", "callback_data": "buy_all"}],
         [{"text": "◀️ НАЗАД", "callback_data": "back_main"}]
     ]
 }
 
-help_menu = {
+admin_menu = {
     "inline_keyboard": [
-        [{"text": "📖 КАК КУПИТЬ?", "callback_data": "how_to_buy"}],
-        [{"text": "⭐️ ЧТО ТАКОЕ ЗВЕЗДЫ?", "callback_data": "about_stars"}],
-        [{"text": "🆘 ПОДДЕРЖКА", "callback_data": "support"}],
+        [{"text": "📝 СОЗДАТЬ ОТЗЫВ", "callback_data": "admin_create_review"}],
+        [{"text": "📊 СТАТИСТИКА", "callback_data": "admin_stats"}],
         [{"text": "◀️ НАЗАД", "callback_data": "back_main"}]
     ]
 }
@@ -93,167 +163,72 @@ def webhook():
         
         # ===== НАВИГАЦИЯ =====
         if data == "catalog":
-            log_pedophile(user_id, username, first_name, "ОТКРЫЛ КАТАЛОГ", "Просматривает категории")
             edit_message(chat_id, message_id,
-                "📸 <b>ПРИВАТНЫЙ АРХИВ 18+</b> 📸\n\n"
-                "<i>Только для совершеннолетних!</i>\n\n"
-                "⭐️ <b>Более 50 000 эксклюзивных файлов</b>\n"
-                "🔥 <b>Ежедневные обновления</b>\n"
-                "🎁 <b>Скидка 20% на первый заказ по промокоду WELCOME20</b>\n\n"
-                "👇 <b>Выбери категорию:</b>",
+                "📸 <b>ПРИВАТНЫЙ АРХИВ</b>\n\nВыбери категорию:",
                 catalog_menu)
         
         elif data == "vip":
-            log_pedophile(user_id, username, first_name, "ОТКРЫЛ VIP", "Интересуется эксклюзивом")
             edit_message(chat_id, message_id,
-                "💎 <b>VIP ЭКСКЛЮЗИВНЫЙ РАЗДЕЛ</b> 💎\n\n"
-                "<b>Только для избранных!</b>\n\n"
-                "🌟 <b>Что ты получишь:</b>\n"
-                "✅ Доступ к редким архивным материалам\n"
-                "✅ Ежедневные VIP-обновления\n"
-                "✅ Приоритетная поддержка 24/7\n"
-                "✅ Закрытый канал с моделью\n\n"
-                "<i>Ограниченное предложение - всего 50 мест!</i>\n\n"
-                "👇 <b>Выбери пакет:</b>",
+                "💎 <b>VIP ЭКСКЛЮЗИВ</b>\n\nВыбери пакет:",
                 vip_menu)
+        
+        elif data == "reviews":
+            reviews_text = get_latest_reviews_text()
+            edit_message(chat_id, message_id,
+                f"📢 <b>ЛУЧШИЕ ОТЗЫВЫ</b>\n\n{reviews_text}",
+                main_menu)
         
         elif data == "help":
             edit_message(chat_id, message_id,
-                "❓ <b>ЦЕНТР ПОДДЕРЖКИ</b> ❓\n\n"
-                "Выбери интересующий вопрос:",
-                help_menu)
-        
-        elif data == "how_to_buy":
-            edit_message(chat_id, message_id,
-                "📖 <b>КАК КУПИТЬ ДОСТУП?</b> 📖\n\n"
-                "1️⃣ <b>Выбери категорию</b> в каталоге\n"
-                "2️⃣ <b>Нажми на кнопку</b> с ценой\n"
-                "3️⃣ <b>Переведи звезды</b> на аккаунт " + PAYMENT_BOT + "\n"
-                "4️⃣ <b>Напиши /confirm</b> и укажи код из заказа\n"
-                "5️⃣ <b>Получи ссылку</b> на закрытый канал\n\n"
-                "⏱ <b>Обычно проверка занимает 2-5 минут</b>\n"
-                "🆘 <b>Вопросы:</b> " + SUPPORT_BOT,
-                help_menu)
-        
-        elif data == "about_stars":
-            edit_message(chat_id, message_id,
-                "⭐️ <b>ЧТО ТАКОЕ TELEGRAM STARS?</b> ⭐️\n\n"
-                "Звезды - это внутренняя валюта Telegram.\n\n"
-                "<b>Как купить звезды:</b>\n"
-                "1️⃣ Открой любой чат\n"
-                "2️⃣ Нажми на иконку меню (три точки)\n"
-                "3️⃣ Выбери 'Купить звезды'\n"
-                "4️⃣ Оплати картой или СБП\n\n"
-                "💰 <b>Курс:</b> 1⭐ ≈ 5 рублей\n\n"
-                "<i>Звезды можно купить прямо в Telegram!</i>",
-                help_menu)
-        
-        elif data == "support":
-            edit_message(chat_id, message_id,
-                "🆘 <b>СЛУЖБА ПОДДЕРЖКИ</b> 🆘\n\n"
-                "📌 <b>По всем вопросам:</b> " + SUPPORT_BOT + "\n\n"
-                "📌 <b>Для проверки оплаты:</b> " + PAYMENT_BOT + "\n\n"
-                "⏰ <b>Время работы:</b> 24/7\n"
-                "🇷🇺 <b>Поддержка на русском языке</b>\n\n"
-                "<i>Пожалуйста, указывайте номер заказа в сообщении!</i>",
-                help_menu)
+                f"❓ <b>ПОМОЩЬ</b>\n\n"
+                f"1. Выбери категорию\n"
+                f"2. Оплати звездами\n"
+                f"3. Получи ссылку\n\n"
+                f"Вопросы: {SUPPORT_BOT}",
+                main_menu)
         
         elif data == "back_main":
             edit_message(chat_id, message_id,
-                "🔞 <b>PRIVATE ARCHIVE 18+</b> 🔞\n\n"
-                "Добро пожаловать в закрытый архив.\n\n"
-                "👇 <b>Выбери раздел:</b>",
+                "🔞 <b>PRIVATE ARCHIVE</b>\n\nГлавное меню:",
                 main_menu)
         
+        # ===== АДМИН ПАНЕЛЬ =====
+        elif data == "admin_panel" and user_id == ADMIN_ID:
+            edit_message(chat_id, message_id,
+                "👑 <b>АДМИН ПАНЕЛЬ</b>",
+                admin_menu)
+        
+        elif data == "admin_create_review" and user_id == ADMIN_ID:
+            # СОЗДАЕМ ФЕЙКОВЫЙ ОТЗЫВ
+            review = generate_fake_review()
+            add_review_to_storage(review)
+            edit_message(chat_id, message_id,
+                f"✅ <b>ОТЗЫВ СОЗДАН</b>\n\n{review}",
+                admin_menu)
+        
+        elif data == "admin_stats" and user_id == ADMIN_ID:
+            with open("pediki.txt", "r") as f:
+                ped_count = len(f.readlines())
+            edit_message(chat_id, message_id,
+                f"📊 <b>СТАТИСТИКА</b>\n\n"
+                f"Педофилов: {ped_count}\n"
+                f"Отзывов: {len(latest_reviews)}",
+                admin_menu)
+        
         # ===== ПОКУПКИ =====
-        elif data == "buy_girls_small":
-            log_pedophile(user_id, username, first_name, "ВЫБРАЛ", "Девочки 6-9 лет - 150⭐")
-            edit_message(chat_id, message_id,
-                "👧 <b>МАЛЕНЬКИЕ ПРИНЦЕССЫ 6-9 ЛЕТ</b> 👧\n\n"
-                "<b>📖 ОПИСАНИЕ КАТЕГОРИИ:</b>\n"
-                "Девочки в возрасте 6-9 лет.\n"
-                "Более 5000 фотографий и 200 видео.\n"
-                "Контент обновляется ежедневно.\n\n"
-                "<b>🎁 ЧТО ТЫ ПОЛУЧИШЬ:</b>\n"
-                "✅ Доступ к закрытому каналу\n"
-                "✅ 5000+ фото высокого качества\n"
-                "✅ 200+ эксклюзивных видео\n"
-                "✅ Ежедневные обновления\n"
-                "✅ Поддержка 24/7\n\n"
-                "<b>💰 ЦЕНА: 150 ⭐</b>\n"
-                "<i>(≈750 рублей по курсу Telegram)</i>\n\n"
-                "👇 <b>ДЛЯ ОПЛАТЫ НАПИШИ:</b> " + PAYMENT_BOT + "\n"
-                "Код: <code>GIRLS6_{user_id}</code>",
-                {"inline_keyboard": [
-                    [{"text": "💳 ПЕРЕЙТИ К ОПЛАТЕ", "url": f"https://t.me/{PAYMENT_BOT[1:]}"}],
-                    [{"text": "◀️ НАЗАД", "callback_data": "catalog"}]
-                ]})
-        
-        elif data == "buy_boys_small":
-            log_pedophile(user_id, username, first_name, "ВЫБРАЛ", "Мальчики 6-9 лет - 150⭐")
-            edit_message(chat_id, message_id,
-                "👦 <b>МАЛЕНЬКИЕ ГЕРОИ 6-9 ЛЕТ</b> 👦\n\n"
-                "<b>📖 ОПИСАНИЕ КАТЕГОРИИ:</b>\n"
-                "Мальчики в возрасте 6-9 лет.\n"
-                "Более 3500 фотографий и 150 видео.\n\n"
-                "<b>💰 ЦЕНА: 150 ⭐</b>\n"
-                "👇 <b>ОПЛАТА:</b> " + PAYMENT_BOT + "\n"
-                "Код: <code>BOYS6_{user_id}</code>",
-                {"inline_keyboard": [
-                    [{"text": "💳 ПЕРЕЙТИ К ОПЛАТЕ", "url": f"https://t.me/{PAYMENT_BOT[1:]}"}],
-                    [{"text": "◀️ НАЗАД", "callback_data": "catalog"}]
-                ]})
-        
-        elif data == "buy_girls_teen":
-            log_pedophile(user_id, username, first_name, "ВЫБРАЛ", "Школьницы 10-12 лет - 200⭐")
-            edit_message(chat_id, message_id,
-                "🌸 <b>ШКОЛЬНИЦЫ 10-12 ЛЕТ</b> 🌸\n\n"
-                "<b>💰 ЦЕНА: 200 ⭐</b>\n"
-                "👇 <b>ОПЛАТА:</b> " + PAYMENT_BOT + "\n"
-                "Код: <code>TEEN_{user_id}</code>",
-                {"inline_keyboard": [
-                    [{"text": "💳 ОПЛАТИТЬ", "url": f"https://t.me/{PAYMENT_BOT[1:]}"}],
-                    [{"text": "◀️ НАЗАД", "callback_data": "catalog"}]
-                ]})
-        
-        elif data == "buy_vip_smallest":
-            log_pedophile(user_id, username, first_name, "ВЫБРАЛ VIP", "Самые маленькие 3-5 лет - 500⭐")
-            edit_message(chat_id, message_id,
-                "🌟 <b>САМЫЕ МАЛЕНЬКИЕ 3-5 ЛЕТ</b> 🌟\n\n"
-                "<b>💰 ЦЕНА: 500 ⭐</b>\n"
-                "👇 <b>ОПЛАТА:</b> " + PAYMENT_BOT + "\n"
-                "Код: <code>SMALLEST_{user_id}</code>",
-                {"inline_keyboard": [
-                    [{"text": "💳 ОПЛАТИТЬ VIP", "url": f"https://t.me/{PAYMENT_BOT[1:]}"}],
-                    [{"text": "◀️ НАЗАД", "callback_data": "vip"}]
-                ]})
-        
-        elif data == "buy_vip_all":
-            log_pedophile(user_id, username, first_name, "ВЫБРАЛ VIP", "Полный доступ - 1000⭐")
-            edit_message(chat_id, message_id,
-                "👑 <b>ПОЛНЫЙ ДОСТУП (ВСЕ КАТЕГОРИИ)</b> 👑\n\n"
-                "<b>💰 ЦЕНА: 1000 ⭐</b>\n"
-                "👇 <b>ОПЛАТА:</b> " + PAYMENT_BOT + "\n"
-                "Код: <code>FULL_{user_id}</code>",
-                {"inline_keyboard": [
-                    [{"text": "💳 ОПЛАТИТЬ ПОЛНЫЙ ДОСТУП", "url": f"https://t.me/{PAYMENT_BOT[1:]}"}],
-                    [{"text": "◀️ НАЗАД", "callback_data": "vip"}]
-                ]})
-        
-        # ОСТАЛЬНЫЕ ПОКУПКИ (ДЛЯ УПРОЩЕНИЯ ДОБАВЬ ПО АНАЛОГИИ)
-        elif data in ["buy_video", "buy_top", "buy_vip_rare"]:
-            log_pedophile(user_id, username, first_name, "ВЫБРАЛ", f"Товар {data}")
+        elif data.startswith("buy_"):
+            log_pedophile(user_id, username, first_name, "ВЫБРАЛ ПАКЕТ", data)
             edit_message(chat_id, message_id,
                 f"✅ <b>ВЫБРАН ПАКЕТ</b>\n\n"
-                f"💰 Цена уточняется\n"
-                f"👇 <b>ОПЛАТА:</b> " + PAYMENT_BOT + f"\n"
-                f"Код: <code>{data}_{user_id}</code>",
+                f"👇 <b>ОПЛАТА:</b> {PAYMENT_BOT}\n"
+                f"Код: <code>{data}_{user_id}</code>\n\n"
+                f"После оплаты: /confirm {data}_{user_id}",
                 {"inline_keyboard": [
                     [{"text": "💳 ОПЛАТИТЬ", "url": f"https://t.me/{PAYMENT_BOT[1:]}"}],
                     [{"text": "◀️ НАЗАД", "callback_data": "catalog"}]
                 ]})
     
-    # ОБРАБОТКА КОМАНДЫ /start И /confirm
+    # ОБРАБОТКА СООБЩЕНИЙ
     if 'message' in update:
         msg = update['message']
         text = msg.get('text', '')
@@ -266,25 +241,31 @@ def webhook():
         if text == '/start':
             log_pedophile(user_id, username, first_name, "СТАРТ", "Запустил бота")
             send_message(chat_id,
-                "🔞 <b>ДОБРО ПОЖАЛОВАТЬ В PRIVATE ARCHIVE 18+</b> 🔞\n\n"
-                "<b>📌 О НАС:</b>\n"
-                "✅ Крупнейший архив эксклюзивного контента\n"
-                "✅ Более 50 000 файлов\n"
-                "✅ Работаем с 2019 года\n"
-                "✅ 5000+ довольных клиентов\n\n"
-                "👇 <b>ВЫБЕРИ РАЗДЕЛ:</b>",
+                "🔞 <b>PRIVATE ARCHIVE</b>\n\nВыбери раздел:",
                 main_menu)
         
+        elif text == '/admin' and user_id == ADMIN_ID:
+            send_message(chat_id, "👑 АДМИН ПАНЕЛЬ", admin_menu)
+        
+        elif text == '/stats' and user_id == ADMIN_ID:
+            with open("pediki.txt", "r") as f:
+                send_message(chat_id, f"Педофилов: {len(f.readlines())}")
+        
+        elif text.startswith('/review') and user_purchased.get(user_id, False):
+            review_text = text.replace('/review', '').strip()
+            if review_text:
+                stars = "⭐️⭐️⭐️⭐️⭐️"
+                date = datetime.now().strftime("%d.%m.%Y")
+                full_review = f"{stars} {review_text}\n📅 {date}"
+                add_review_to_storage(full_review)
+                send_message(chat_id, "✅ Спасибо за отзыв!")
+                send_message(ADMIN_ID, f"📢 Отзыв от @{username}: {review_text}")
+        
         elif text.startswith('/confirm'):
-            parts = text.split()
-            if len(parts) > 1:
-                code = parts[1]
-                log_pedophile(user_id, username, first_name, "ОТПРАВИЛ ЗАПРОС", f"Код: {code}")
-                send_message(chat_id,
-                    "✅ <b>ЗАПРОС ПОЛУЧЕН!</b> ✅\n\n"
-                    "Мы проверим оплату в ближайшее время.\n\n"
-                    "🆘 <b>Вопросы:</b> " + SUPPORT_BOT,
-                    None)
+            user_purchased[user_id] = True
+            send_message(chat_id,
+                "✅ ЗАПРОС ПОЛУЧЕН!\n"
+                f"После подтверждения оплаты напиши /review и оставь отзыв!")
     
     return 'ok', 200
 
