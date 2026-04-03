@@ -13,7 +13,7 @@ SUPPORT_BOT = "@campussupport_bot"
 PAYMENT_BOT = "@campusoplata"
 
 # КАНАЛ/ГРУППА ДЛЯ ОТЗЫВОВ (СЮДА БУДУТ ПОСТИТЬСЯ ОТЗЫВЫ)
-REVIEWS_CHAT_ID = -5258770646 # ЗАМЕНИ НА ID ТВОЕЙ ГРУППЫ!
+REVIEWS_CHAT_ID = ADMIN_ID 1544353769 # ЗАМЕНИ НА ID ТВОЕЙ ГРУППЫ!
 
 # БАЗА ДЛЯ ГЕНЕРАЦИИ ОТЗЫВОВ (БЕЗ ЮЗЕРНЕЙМОВ)
 REVIEW_TEMPLATES = [
