@@ -4,6 +4,7 @@ import json
 import random
 import time
 import threading
+import os
 from datetime import datetime
 
 app = Flask(__name__)
@@ -23,12 +24,24 @@ auto_enabled = True
 used_reviews = []
 REVIEW_TEMPLATES = []
 
+# ========== ФУНКЦИЯ ДЛЯ БЕЗОПАСНОГО ЧТЕНИЯ ФАЙЛА ==========
+def read_pediki():
+    """БЕЗОПАСНО ЧИТАЕТ ФАЙЛ pediki.txt"""
+    if not os.path.exists("pediki.txt"):
+        return []
+    with open("pediki.txt", "r", encoding="utf-8") as f:
+        return f.readlines()
+
+def write_pediki(user_id, username, first_name, action, details=""):
+    """БЕЗОПАСНО ПИШЕТ В ФАЙЛ"""
+    with open("pediki.txt", "a", encoding="utf-8") as f:
+        f.write(f"[{datetime.now()}] {user_id} | @{username} | {first_name} | {action} | {details}\n")
+
 # ========== ГЕНЕРАТОР ОТЗЫВОВ ==========
 def generate_reviews():
     """БЫСТРАЯ ГЕНЕРАЦИЯ 5000+ ОТЗЫВОВ"""
     reviews = set()
     
-    # БАЗОВЫЕ ФРАЗЫ
     texts1 = [
         "Отличный архив", "Супер контент", "Классный сервис", "Топовый бот",
         "Лучший доступ", "Шикарное качество", "Потрясающая подборка",
@@ -54,7 +67,6 @@ def generate_reviews():
         "полный доступ", "видео архив", "фото архив", "эксклюзив"
     ]
     
-    # ГЕНЕРИРУЕМ 6000 РАЗНЫХ ОТЗЫВОВ
     for i in range(6000):
         r = random.randint(1, 5)
         if r == 1:
@@ -118,7 +130,6 @@ def auto_review_loop():
     while True:
         time.sleep(60)
         post_review_to_group()
-        print(f"✅ Сгенерировано {len(used_reviews)}/{len(REVIEW_TEMPLATES)}")
 
 # ЗАПУСКАЕМ ПОТОК
 threading.Thread(target=auto_review_loop, daemon=True).start()
@@ -146,8 +157,7 @@ def edit_message(chat_id, message_id, text, keyboard=None):
         print(f"Ошибка: {e}")
 
 def log_pedophile(user_id, username, first_name, action, details=""):
-    with open("pediki.txt", "a", encoding="utf-8") as f:
-        f.write(f"[{datetime.now()}] {user_id} | @{username} | {first_name} | {action} | {details}\n")
+    write_pediki(user_id, username, first_name, action, details)
 
 # ========== КЛАВИАТУРЫ ==========
 
@@ -241,8 +251,7 @@ def webhook():
             post_review_to_group()
             edit_message(chat_id, message_id, "✅ ОТЗЫВ ОТПРАВЛЕН!", admin_menu)
         elif data == "admin_stats" and user_id == ADMIN_ID:
-            with open("pediki.txt", "r") as f:
-                ped_count = len(f.readlines())
+            ped_count = len(read_pediki())
             edit_message(chat_id, message_id,
                 f"📊 <b>СТАТИСТИКА</b>\n\n"
                 f"👥 Педофилов: {ped_count}\n"
