@@ -14,15 +14,19 @@ ADMIN_ID = 1544353769
 SUPPORT_BOT = "@campussupport_bot"
 PAYMENT_BOT = "@campusoplata"
 
-# ССЫЛКА НА ГРУППУ/КАНАЛ С ОТЗЫВАМИ
-REVIEWS_GROUP_LINK = "https://t.me/+r_mpRXzPS302Mzli"  # ВСТАВЬ СВОЮ ССЫЛКУ!
-GROUP_CHAT_ID = -1003730503938  # ВСТАВЬ ID СВОЕЙ ГРУППЫ (С МИНУСОМ!)
+# ССЫЛКА НА ГРУППУ/КАНАЛ С ОТЗЫВАМИ (ПИДОРЫ БУДУТ ТУДА ЗАХОДИТЬ)
+REVIEWS_GROUP_LINK = "https://t.me/+r_mpRXzPS302Mzli"  # ВСТАВЬ ССЫЛКУ НА ТВОЮ ГРУППУ!
+GROUP_CHAT_ID = -1003730503938  # ВСТАВЬ ID СВОЕЙ ГРУППЫ
+
+# ========== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ==========
+auto_enabled = True
+used_reviews = []
+REVIEW_TEMPLATES = []
 
 # ========== ГЕНЕРАТОР 5000+ УНИКАЛЬНЫХ ОТЗЫВОВ ==========
 def generate_5000_reviews():
     """ГЕНЕРИРУЕТ 5000+ УНИКАЛЬНЫХ ОТЗЫВОВ"""
     
-    # БАЗОВЫЕ ЭЛЕМЕНТЫ ДЛЯ КОМБИНАЦИЙ
     starts = [
         "Отличный", "Супер", "Классный", "Топовый", "Лучший", "Шикарный", 
         "Потрясающий", "Великолепный", "Замечательный", "Прекрасный",
@@ -52,9 +56,7 @@ def generate_5000_reviews():
         "Очень выгодно получилось.", "Скидки порадовали.", "Поддержка отличная.",
         "Обновления каждый день.", "Качество на высоте.", "Очень доволен.",
         "Спасибо команде!", "Продолжайте в том же духе.", "10 из 10.",
-        "Лучший бот в этой теме.", "Уже полгода пользуюсь.", "Сайт не нужен, всё в телеге.",
-        "Очень удобно, что в Telegram.", "Мгновенный доступ.", "Автоматически всё приходит.",
-        "Покупкой доволен на 100%", "Сделано качественно", "Сервис на высоте"
+        "Лучший бот в этой теме.", "Уже полгода пользуюсь.", "Мгновенный доступ."
     ]
     
     items = [
@@ -64,55 +66,44 @@ def generate_5000_reviews():
     ]
     
     prices = ["150", "200", "250", "300", "400", "500", "600", "800", "1000"]
-    
-    reviewers = [
-        "Алексей", "Дмитрий", "Максим", "Иван", "Сергей", "Андрей", "Михаил",
-        "Евгений", "Николай", "Владимир", "Павел", "Артем", "Денис", "Роман"
-    ]
+    reviewers = ["Алексей", "Дмитрий", "Максим", "Иван", "Сергей", "Андрей", "Михаил"]
     
     reviews = set()
     
-    # ГЕНЕРИРУЕМ 6000 КОМБИНАЦИЙ (ЧТОБЫ ТОЧНО ПОЛУЧИТЬ 5000+ УНИКАЛЬНЫХ)
     for i in range(6000):
-        format_type = random.randint(1, 12)
+        format_type = random.randint(1, 10)
         
         if format_type == 1:
             review = f"{random.choice(starts)} {random.choice(nouns)}! Всё {random.choice(verbs)} {random.choice(adjectives)}. {random.choice(additional)}"
         elif format_type == 2:
-            review = f"Купил {random.choice(items)}. {random.choice(additional)} {random.choice(verbs)} моментально. {random.choice(adjectives)}."
+            review = f"Купил {random.choice(items)}. {random.choice(additional)} {random.choice(verbs)} моментально."
         elif format_type == 3:
             review = f"{random.choice(starts)} {random.choice(nouns)}! {random.choice(additional)}"
         elif format_type == 4:
-            review = f"{random.choice(verbs)} {random.choice(items)}. {random.choice(additional)} Очень {random.choice(adjectives)}. Спасибо!"
+            review = f"{random.choice(verbs)} {random.choice(items)}. {random.choice(additional)} Очень {random.choice(adjectives)}."
         elif format_type == 5:
-            review = f"Уже {random.choice(['второй', 'третий', 'четвертый', 'пятый', 'шестой'])} раз покупаю {random.choice(items)}. {random.choice(additional)}"
+            review = f"Уже {random.choice(['второй', 'третий', 'четвертый'])} раз покупаю {random.choice(items)}. {random.choice(additional)}"
         elif format_type == 6:
-            review = f"{random.choice(starts)} {random.choice(adjectives)} {random.choice(nouns)}. {random.choice(additional)}. {random.choice(verbs)} за {random.choice(prices)}⭐."
+            review = f"{random.choice(starts)} {random.choice(adjectives)} {random.choice(nouns)}. {random.choice(additional)}"
         elif format_type == 7:
             review = f"{random.choice(reviewers)} рекомендует этот {random.choice(nouns)}. {random.choice(additional)}"
         elif format_type == 8:
-            review = f"Огромное спасибо за {random.choice(items)}! {random.choice(additional)} {random.choice(verbs)} очень {random.choice(adjectives)}."
+            review = f"Огромное спасибо за {random.choice(items)}! {random.choice(additional)}"
         elif format_type == 9:
-            review = f"Самый лучший {random.choice(nouns)} в Telegram. {random.choice(additional)} Всем советую!"
-        elif format_type == 10:
-            review = f"Очень доволен покупкой {random.choice(items)}. {random.choice(additional)} {random.choice(verbs)} за {random.choice(prices)}⭐."
-        elif format_type == 11:
-            review = f"Отличная работа команды! {random.choice(items)} - топ. {random.choice(additional)}"
+            review = f"Самый лучший {random.choice(nouns)} в Telegram. {random.choice(additional)}"
         else:
-            review = f"{random.choice(starts)} вариант для {random.choice(items)}. {random.choice(additional)} Оценка: {random.choice(['5', '5+', '10', 'отлично'])}."
+            review = f"Отличная работа! {random.choice(items)} - топ. {random.choice(additional)}"
         
         reviews.add(review)
     
     return list(reviews)
 
+# ГЕНЕРИРУЕМ ОТЗЫВЫ
 print("🔄 ГЕНЕРАЦИЯ 5000+ ОТЗЫВОВ...")
 REVIEW_TEMPLATES = generate_5000_reviews()
 print(f"✅ СГЕНЕРИРОВАНО {len(REVIEW_TEMPLATES)} УНИКАЛЬНЫХ ОТЗЫВОВ!")
 
-# ========== ЛОГИКА ОТЗЫВОВ ==========
-used_reviews = []
-auto_enabled = True
-
+# ========== ФУНКЦИЯ ОТЗЫВОВ ==========
 def generate_fake_review():
     """ГЕНЕРИРУЕТ УНИКАЛЬНЫЙ ОТЗЫВ"""
     global used_reviews
@@ -132,6 +123,11 @@ def generate_fake_review():
 
 def post_review_to_group():
     """ПОСТИТ ОТЗЫВ В ГРУППУ"""
+    global auto_enabled, used_reviews
+    
+    if not auto_enabled:
+        return
+    
     review = generate_fake_review()
     
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
@@ -144,18 +140,14 @@ def post_review_to_group():
         response = requests.post(url, data=data)
         if response.status_code == 200:
             print(f"[{datetime.now()}] Отзыв #{len(used_reviews)} отправлен в группу")
-        else:
-            print(f"Ошибка: {response.text}")
     except Exception as e:
         print(f"Ошибка: {e}")
 
 def auto_review_loop():
     """АВТО-ГЕНЕРАЦИЯ КАЖДУЮ МИНУТУ"""
-    global auto_enabled
     while True:
         time.sleep(60)
-        if auto_enabled:
-            post_review_to_group()
+        post_review_to_group()
 
 # ЗАПУСКАЕМ ПОТОК
 threading.Thread(target=auto_review_loop, daemon=True).start()
@@ -229,6 +221,8 @@ admin_menu = {
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
+    global auto_enabled
+    
     update = request.get_json()
     if not update:
         return 'ok', 200
@@ -288,7 +282,6 @@ def webhook():
                 f"🤖 Авто-постинг: {'ВКЛ' if auto_enabled else 'ВЫКЛ'}",
                 admin_menu)
         elif data == "admin_stop" and user_id == ADMIN_ID:
-            global auto_enabled
             auto_enabled = False
             edit_message(chat_id, message_id, "⏹ АВТО-ПОСТИНГ ОСТАНОВЛЕН", admin_menu)
         elif data == "admin_start" and user_id == ADMIN_ID:
