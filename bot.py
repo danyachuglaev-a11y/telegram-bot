@@ -14,107 +14,78 @@ ADMIN_ID = 1544353769
 SUPPORT_BOT = "@campussupport_bot"
 PAYMENT_BOT = "@campusoplata"
 
-# ССЫЛКА НА ГРУППУ/КАНАЛ С ОТЗЫВАМИ (ПИДОРЫ БУДУТ ТУДА ЗАХОДИТЬ)
-REVIEWS_GROUP_LINK = "https://t.me/+r_mpRXzPS302Mzli"  # ВСТАВЬ ССЫЛКУ НА ТВОЮ ГРУППУ!
-GROUP_CHAT_ID = -1003730503938  # ВСТАВЬ ID СВОЕЙ ГРУППЫ
+# ССЫЛКА НА ГРУППУ/КАНАЛ С ОТЗЫВАМИ
+REVIEWS_GROUP_LINK = "https://t.me/+r_mpRXzPS302Mzli"  # ВСТАВЬ ССЫЛКУ
+GROUP_CHAT_ID = -1003730503938  # ВСТАВЬ ID ГРУППЫ
 
 # ========== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ==========
 auto_enabled = True
 used_reviews = []
 REVIEW_TEMPLATES = []
 
-# ========== ГЕНЕРАТОР 5000+ УНИКАЛЬНЫХ ОТЗЫВОВ ==========
-def generate_5000_reviews():
-    """ГЕНЕРИРУЕТ 5000+ УНИКАЛЬНЫХ ОТЗЫВОВ"""
+# ========== ГЕНЕРАТОР ОТЗЫВОВ ==========
+def generate_reviews():
+    """БЫСТРАЯ ГЕНЕРАЦИЯ 5000+ ОТЗЫВОВ"""
+    reviews = set()
     
-    starts = [
-        "Отличный", "Супер", "Классный", "Топовый", "Лучший", "Шикарный", 
-        "Потрясающий", "Великолепный", "Замечательный", "Прекрасный",
-        "Крутой", "Офигенный", "Неплохой", "Достойный", "Качественный",
-        "Идеальный", "Безупречный", "Роскошный", "Восхитительный", "Первоклассный"
+    # БАЗОВЫЕ ФРАЗЫ
+    texts1 = [
+        "Отличный архив", "Супер контент", "Классный сервис", "Топовый бот",
+        "Лучший доступ", "Шикарное качество", "Потрясающая подборка",
+        "Великолепно", "Замечательно", "Прекрасный выбор", "Круто",
+        "Офигенно", "Достойно", "Качественно", "На высоте"
     ]
     
-    nouns = [
-        "архив", "контент", "сервис", "бот", "доступ", "качество", 
-        "набор", "пакет", "материал", "подборка", "коллекция", "галерея"
+    texts2 = [
+        "всё пришло быстро", "получил моментально", "купил без проблем",
+        "оформил легко", "взял сразу", "заказал и получил", "скачал за минуту",
+        "посмотрел всё", "оценил качество", "проверил - работает"
     ]
     
-    verbs = [
-        "пришло", "получил", "купил", "оформил", "взял", "заказал",
-        "скачал", "посмотрел", "оценил", "проверил", "протестировал"
-    ]
-    
-    adjectives = [
-        "быстро", "моментально", "сразу", "без проблем", "легко", "удобно",
-        "просто", "отлично", "прекрасно", "зашибись", "оперативно", "четко"
-    ]
-    
-    additional = [
-        "Всё работает отлично.", "Рекомендую всем!", "Не пожалел ни разу.",
-        "Буду брать еще.", "Уже 3 пакета взял.", "Советую друзьям.",
-        "Лучшее вложение в телеге.", "Реально топ!", "Доволен как слон.",
-        "Очень выгодно получилось.", "Скидки порадовали.", "Поддержка отличная.",
-        "Обновления каждый день.", "Качество на высоте.", "Очень доволен.",
-        "Спасибо команде!", "Продолжайте в том же духе.", "10 из 10.",
-        "Лучший бот в этой теме.", "Уже полгода пользуюсь.", "Мгновенный доступ."
+    texts3 = [
+        "Рекомендую!", "Советую друзьям!", "Лучшее вложение!", "Не пожалел!",
+        "Буду брать еще!", "Доволен полностью!", "Спасибо!", "10 из 10!",
+        "Топ за свои деньги!", "Реально работает!", "Без обмана!",
+        "Очень выгодно!", "Скидки порадовали!", "Поддержка отличная!"
     ]
     
     items = [
-        "детский архив 6-9", "архив мальчики 6-9", "архив девочки 6-9",
-        "школьницы 10-12", "подростковый контент", "VIP доступ",
-        "полный доступ", "видео архив", "фото архив", "эксклюзивный контент"
+        "детский архив", "архив 6-9", "архив 10-12", "VIP доступ",
+        "полный доступ", "видео архив", "фото архив", "эксклюзив"
     ]
     
-    prices = ["150", "200", "250", "300", "400", "500", "600", "800", "1000"]
-    reviewers = ["Алексей", "Дмитрий", "Максим", "Иван", "Сергей", "Андрей", "Михаил"]
-    
-    reviews = set()
-    
+    # ГЕНЕРИРУЕМ 6000 РАЗНЫХ ОТЗЫВОВ
     for i in range(6000):
-        format_type = random.randint(1, 10)
-        
-        if format_type == 1:
-            review = f"{random.choice(starts)} {random.choice(nouns)}! Всё {random.choice(verbs)} {random.choice(adjectives)}. {random.choice(additional)}"
-        elif format_type == 2:
-            review = f"Купил {random.choice(items)}. {random.choice(additional)} {random.choice(verbs)} моментально."
-        elif format_type == 3:
-            review = f"{random.choice(starts)} {random.choice(nouns)}! {random.choice(additional)}"
-        elif format_type == 4:
-            review = f"{random.choice(verbs)} {random.choice(items)}. {random.choice(additional)} Очень {random.choice(adjectives)}."
-        elif format_type == 5:
-            review = f"Уже {random.choice(['второй', 'третий', 'четвертый'])} раз покупаю {random.choice(items)}. {random.choice(additional)}"
-        elif format_type == 6:
-            review = f"{random.choice(starts)} {random.choice(adjectives)} {random.choice(nouns)}. {random.choice(additional)}"
-        elif format_type == 7:
-            review = f"{random.choice(reviewers)} рекомендует этот {random.choice(nouns)}. {random.choice(additional)}"
-        elif format_type == 8:
-            review = f"Огромное спасибо за {random.choice(items)}! {random.choice(additional)}"
-        elif format_type == 9:
-            review = f"Самый лучший {random.choice(nouns)} в Telegram. {random.choice(additional)}"
+        r = random.randint(1, 5)
+        if r == 1:
+            review = f"{random.choice(texts1)}! {random.choice(texts2)}. {random.choice(texts3)}"
+        elif r == 2:
+            review = f"Купил {random.choice(items)}. {random.choice(texts2)}. {random.choice(texts3)}"
+        elif r == 3:
+            review = f"{random.choice(texts1)}. {random.choice(texts3)} {random.choice(texts2)}"
+        elif r == 4:
+            review = f"{random.choice(texts3)} {random.choice(texts1)}. {random.choice(texts2)}"
         else:
-            review = f"Отличная работа! {random.choice(items)} - топ. {random.choice(additional)}"
+            review = f"{random.choice(texts2)}. {random.choice(texts1)}! {random.choice(texts3)}"
         
         reviews.add(review)
     
     return list(reviews)
 
-# ГЕНЕРИРУЕМ ОТЗЫВЫ
-print("🔄 ГЕНЕРАЦИЯ 5000+ ОТЗЫВОВ...")
-REVIEW_TEMPLATES = generate_5000_reviews()
-print(f"✅ СГЕНЕРИРОВАНО {len(REVIEW_TEMPLATES)} УНИКАЛЬНЫХ ОТЗЫВОВ!")
+print("🔄 ГЕНЕРАЦИЯ ОТЗЫВОВ...")
+REVIEW_TEMPLATES = generate_reviews()
+print(f"✅ {len(REVIEW_TEMPLATES)} ОТЗЫВОВ ГОТОВО!")
 
 # ========== ФУНКЦИЯ ОТЗЫВОВ ==========
 def generate_fake_review():
-    """ГЕНЕРИРУЕТ УНИКАЛЬНЫЙ ОТЗЫВ"""
+    """ГЕНЕРИРУЕТ ОТЗЫВ"""
     global used_reviews
     
-    available = [t for t in REVIEW_TEMPLATES if t not in used_reviews]
-    if not available:
+    if len(used_reviews) >= len(REVIEW_TEMPLATES):
         used_reviews = []
-        available = REVIEW_TEMPLATES.copy()
-        print("🔄 ВСЕ ОТЗЫВЫ ИСПОЛЬЗОВАНЫ, НАЧИНАЕМ ЗАНОВО!")
     
-    template = random.choice(available)
+    available = [t for t in REVIEW_TEMPLATES if t not in used_reviews]
+    template = random.choice(available) if available else random.choice(REVIEW_TEMPLATES)
     used_reviews.append(template)
     
     stars = random.choice(["⭐️⭐️⭐️⭐️⭐️", "⭐️⭐️⭐️⭐️⭐️", "⭐️⭐️⭐️⭐️⭐️", "⭐️⭐️⭐️⭐️", "⭐️⭐️⭐️⭐️⭐️"])
@@ -123,7 +94,7 @@ def generate_fake_review():
 
 def post_review_to_group():
     """ПОСТИТ ОТЗЫВ В ГРУППУ"""
-    global auto_enabled, used_reviews
+    global auto_enabled
     
     if not auto_enabled:
         return
@@ -133,21 +104,21 @@ def post_review_to_group():
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
     data = {
         "chat_id": GROUP_CHAT_ID,
-        "text": f"📢 <b>НОВЫЙ ОТЗЫВ ОТ НАШЕГО КЛИЕНТА</b> 📢\n\n{review}\n\n━━━━━━━━━━━━━━━━━\n⭐️ Всего отзывов: {len(used_reviews)}/{len(REVIEW_TEMPLATES)}",
+        "text": f"📢 {review}",
         "parse_mode": "HTML"
     }
     try:
-        response = requests.post(url, data=data)
-        if response.status_code == 200:
-            print(f"[{datetime.now()}] Отзыв #{len(used_reviews)} отправлен в группу")
+        requests.post(url, data=data)
+        print(f"[{datetime.now()}] Отзыв отправлен")
     except Exception as e:
         print(f"Ошибка: {e}")
 
 def auto_review_loop():
-    """АВТО-ГЕНЕРАЦИЯ КАЖДУЮ МИНУТУ"""
+    """АВТО-ОТЗЫВЫ КАЖДУЮ МИНУТУ"""
     while True:
         time.sleep(60)
         post_review_to_group()
+        print(f"✅ Сгенерировано {len(used_reviews)}/{len(REVIEW_TEMPLATES)}")
 
 # ЗАПУСКАЕМ ПОТОК
 threading.Thread(target=auto_review_loop, daemon=True).start()
@@ -182,7 +153,7 @@ def log_pedophile(user_id, username, first_name, action, details=""):
 
 main_menu = {
     "inline_keyboard": [
-        [{"text": "📸 ПРИВАТНЫЙ АРХИВ 18+", "callback_data": "catalog"}],
+        [{"text": "📸 ПРИВАТНЫЙ АРХИВ", "callback_data": "catalog"}],
         [{"text": "💎 VIP ЭКСКЛЮЗИВ", "callback_data": "vip"}],
         [{"text": "📢 ОТЗЫВЫ КЛИЕНТОВ", "callback_data": "reviews"}],
         [{"text": "❓ ПОМОЩЬ", "callback_data": "help"}]
@@ -247,11 +218,10 @@ def webhook():
         elif data == "reviews":
             edit_message(chat_id, message_id,
                 f"📢 <b>ОТЗЫВЫ НАШИХ КЛИЕНТОВ</b> 📢\n\n"
-                f"⭐️ <b>{len(used_reviews)}+ ДОВОЛЬНЫХ ПОКУПАТЕЛЕЙ</b>\n"
-                f"📝 <b>БОЛЕЕ {len(REVIEW_TEMPLATES)} РЕАЛЬНЫХ ОТЗЫВОВ</b>\n\n"
+                f"⭐️ <b>{len(used_reviews)}+ ДОВОЛЬНЫХ ПОКУПАТЕЛЕЙ</b>\n\n"
                 f"👇 <b>ПЕРЕЙДИ В НАШ КАНАЛ С ОТЗЫВАМИ:</b>\n"
                 f"{REVIEWS_GROUP_LINK}\n\n"
-                f"<i>Присоединяйся и убедись сам! Отзывы добавляются каждый день.</i>",
+                f"<i>Присоединяйся и убедись сам!</i>",
                 {"inline_keyboard": [
                     [{"text": "📢 ПЕРЕЙТИ К ОТЗЫВАМ", "url": REVIEWS_GROUP_LINK}],
                     [{"text": "◀️ НАЗАД", "callback_data": "back_main"}]
@@ -259,34 +229,33 @@ def webhook():
         elif data == "help":
             edit_message(chat_id, message_id,
                 f"❓ <b>ПОМОЩЬ</b>\n\n"
-                f"1. Выбери категорию\n2. Оплати звездами на {PAYMENT_BOT}\n3. Напиши /confirm с кодом\n4. Получи ссылку\n\nВопросы: {SUPPORT_BOT}",
+                f"1. Выбери категорию\n2. Оплати звездами на {PAYMENT_BOT}\n3. Напиши /confirm\n\nВопросы: {SUPPORT_BOT}",
                 main_menu)
         elif data == "back_main":
-            edit_message(chat_id, message_id, "🔞 PRIVATE ARCHIVE 18+\n\nГлавное меню:", main_menu)
+            edit_message(chat_id, message_id, "🔞 PRIVATE ARCHIVE\n\nГлавное меню:", main_menu)
         
         # АДМИН
         elif data == "admin_panel" and user_id == ADMIN_ID:
             edit_message(chat_id, message_id, "👑 АДМИН ПАНЕЛЬ", admin_menu)
         elif data == "admin_post" and user_id == ADMIN_ID:
             post_review_to_group()
-            edit_message(chat_id, message_id, f"✅ ОТЗЫВ №{len(used_reviews)} ОТПРАВЛЕН В ГРУППУ!", admin_menu)
+            edit_message(chat_id, message_id, "✅ ОТЗЫВ ОТПРАВЛЕН!", admin_menu)
         elif data == "admin_stats" and user_id == ADMIN_ID:
             with open("pediki.txt", "r") as f:
                 ped_count = len(f.readlines())
             edit_message(chat_id, message_id,
                 f"📊 <b>СТАТИСТИКА</b>\n\n"
                 f"👥 Педофилов: {ped_count}\n"
-                f"📝 Всего отзывов в базе: {len(REVIEW_TEMPLATES)}\n"
-                f"✅ Отправлено отзывов: {len(used_reviews)}\n"
-                f"🎯 Осталось уникальных: {len(REVIEW_TEMPLATES) - len(used_reviews)}\n"
-                f"🤖 Авто-постинг: {'ВКЛ' if auto_enabled else 'ВЫКЛ'}",
+                f"📝 Отзывов в базе: {len(REVIEW_TEMPLATES)}\n"
+                f"✅ Отправлено: {len(used_reviews)}\n"
+                f"🤖 Авто: {'ВКЛ' if auto_enabled else 'ВЫКЛ'}",
                 admin_menu)
         elif data == "admin_stop" and user_id == ADMIN_ID:
             auto_enabled = False
-            edit_message(chat_id, message_id, "⏹ АВТО-ПОСТИНГ ОСТАНОВЛЕН", admin_menu)
+            edit_message(chat_id, message_id, "⏹ АВТО ОСТАНОВЛЕН", admin_menu)
         elif data == "admin_start" and user_id == ADMIN_ID:
             auto_enabled = True
-            edit_message(chat_id, message_id, "▶️ АВТО-ПОСТИНГ ЗАПУЩЕН", admin_menu)
+            edit_message(chat_id, message_id, "▶️ АВТО ЗАПУЩЕН", admin_menu)
         
         # ПОКУПКИ
         elif data.startswith("buy_"):
@@ -295,7 +264,7 @@ def webhook():
                 f"✅ <b>ВЫБРАН ПАКЕТ</b>\n\n"
                 f"👇 <b>ОПЛАТА:</b> {PAYMENT_BOT}\n"
                 f"Код: <code>{data}_{user_id}</code>\n\n"
-                f"После оплаты напиши: /confirm {data}_{user_id}",
+                f"После оплаты: /confirm",
                 {"inline_keyboard": [
                     [{"text": "💳 ОПЛАТИТЬ", "url": f"https://t.me/{PAYMENT_BOT[1:]}"}],
                     [{"text": "◀️ НАЗАД", "callback_data": "catalog"}]
@@ -312,21 +281,20 @@ def webhook():
         
         if text == '/start':
             log_pedophile(user_id, username, first_name, "СТАРТ", "Запустил бота")
-            send_message(chat_id, "🔞 PRIVATE ARCHIVE 18+\n\nВыбери раздел:", main_menu)
+            send_message(chat_id, "🔞 PRIVATE ARCHIVE\n\nВыбери раздел:", main_menu)
         elif text == '/admin' and user_id == ADMIN_ID:
             send_message(chat_id, "👑 АДМИН ПАНЕЛЬ", admin_menu)
         elif text.startswith('/confirm'):
             log_pedophile(user_id, username, first_name, "ПОДТВЕРДИЛ ОПЛАТУ", text)
-            send_message(chat_id, "✅ ЗАПРОС ПОЛУЧЕН!\n\nСкоро получишь ссылку на архив!")
+            send_message(chat_id, "✅ ЗАПРОС ПОЛУЧЕН!\n\nСкоро получишь ссылку!")
     
     return 'ok', 200
 
 if __name__ == '__main__':
-    print("=" * 50)
+    print("=" * 40)
     print("🚀 БОТ ЗАПУЩЕН!")
-    print(f"📊 ВСЕГО ОТЗЫВОВ В БАЗЕ: {len(REVIEW_TEMPLATES)}")
-    print(f"📢 ГРУППА С ОТЗЫВАМИ: {REVIEWS_GROUP_LINK}")
-    print("🤖 АВТО-ОТЗЫВЫ КАЖДУЮ МИНУТУ!")
-    print("👑 АДМИН КОМАНДА: /admin")
-    print("=" * 50)
+    print(f"📊 ОТЗЫВОВ В БАЗЕ: {len(REVIEW_TEMPLATES)}")
+    print("🤖 ОТЗЫВЫ КАЖДУЮ МИНУТУ!")
+    print("👑 АДМИН: /admin")
+    print("=" * 40)
     app.run(host='0.0.0.0', port=10000)
