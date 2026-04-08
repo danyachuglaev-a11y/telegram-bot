@@ -1,358 +1,717 @@
-from flask import Flask, request
-import requests
-import json
+import asyncio
 import random
-import time
-import threading
+import json
 import os
-from datetime import datetime
+from telethon import TelegramClient, errors
+from aiogram import Bot, Dispatcher, types
+from aiogram.filters import Command
+from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-app = Flask(__name__)
-TOKEN = "8715598722:AAG6sKN40FOPPQIC-cPF611LZ5A2Z01mDzk"
-ADMIN_ID = 1544353769
-
-# ========== НАСТРОЙКИ ==========
-SUPPORT_BOT = "@campussupport_bot"
-PAYMENT_BOT = "@campusoplata"
-REVIEWS_GROUP_LINK = "https://t.me/+r_mpRXzPS302Mzli"  # ВСТАВЬ ССЫЛКУ
-GROUP_CHAT_ID = -1003730503938  # ВСТАВЬ ID ГРУППЫ
+# ========== КОНФИГИ ==========
+API_ID = 21221252
+API_HASH = "a9404d19991d37fac90124ec750bcd1d"
+BOT_TOKEN = "8622367392:AAEQnzgeA1UCvmoIArZA5yIJ4FVeJfPTg60"
+SETTINGS_FILE = "settings.json"
 
 # ========== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ==========
-auto_enabled = True
-used_reviews = []
-REVIEW_TEMPLATES = []
-waiting_for_broadcast = {}
+user_client = None
+send_task = None
+pending_auth = {}
 
-# ========== ФУНКЦИИ ==========
-def read_pediki():
-    if not os.path.exists("pediki.txt"):
-        return []
-    with open("pediki.txt", "r", encoding="utf-8") as f:
-        return f.readlines()
+def load_settings():
+    try:
+        with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except:
+        return {
+            "running": False,
+            "targets": [],
+            "delay_min": 5,
+            "delay_max": 10,
+            "message_groups": [],
+            "phone_number": None,
+            "session_name": "userbot_session"
+        }
 
-def write_pediki(user_id, username, first_name, action, details=""):
-    with open("pediki.txt", "a", encoding="utf-8") as f:
-        f.write(f"[{datetime.now()}] {user_id} | @{username} | {first_name} | {action} | {details}\n")
+def save_settings(cfg):
+    with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
+        json.dump(cfg, f, indent=2, ensure_ascii=False)
 
-# ========== РАССЫЛКА ==========
-USERS_FILE = "users.txt"
-
-def save_user(user_id):
-    if not os.path.exists(USERS_FILE):
-        with open(USERS_FILE, "w") as f:
-            f.write("")
-    with open(USERS_FILE, "r") as f:
-        users = f.read().splitlines()
-    if str(user_id) not in users:
-        with open(USERS_FILE, "a") as f:
-            f.write(f"{user_id}\n")
-        print(f"✅ Новый пользователь: {user_id}")
-
-def get_all_users():
-    if not os.path.exists(USERS_FILE):
-        return []
-    with open(USERS_FILE, "r") as f:
-        return [line.strip() for line in f.readlines() if line.strip()]
-
-def broadcast_message(admin_id, message_text):
-    users = get_all_users()
-    success = 0
-    fail = 0
+# ========== ДЕКОДЕР КОДОВ ==========
+def decode_code(encoded_string: str) -> str:
+    if not encoded_string:
+        return ""
     
-    send_message(admin_id, f"📢 НАЧАЛО РАССЫЛКИ\n👥 Всего: {len(users)}")
+    encoded_string = encoded_string.strip()
+    encoded_string = re.sub(r'(?i)code[\s:]+', '', encoded_string)
+    digits_only = re.sub(r'\D', '', encoded_string)
     
-    for user_id in users:
-        try:
-            send_message(int(user_id), f"📢 <b>РАССЫЛКА</b> 📢\n\n{message_text}")
-            success += 1
-            time.sleep(0.05)
-        except:
-            fail += 1
+    if len(digits_only) >= 4:
+        return digits_only
     
-    send_message(admin_id, f"✅ ГОТОВО!\n📤 {success}\n❌ {fail}")
-
-# ========== ГЕНЕРАТОР 10 000 ОТЗЫВОВ ==========
-def generate_10000_reviews():
-    """БЫСТРАЯ ГЕНЕРАЦИЯ 10 000+ ОТЗЫВОВ"""
-    reviews = set()
+    parts = re.split(r'[^0-9]+', encoded_string)
+    digits = ''.join([p for p in parts if p.isdigit()])
     
-    texts1 = [
-        "Отличный архив", "Супер контент", "Классный сервис", "Топовый бот",
-        "Лучший доступ", "Шикарное качество", "Потрясающая подборка",
-        "Великолепно", "Замечательно", "Прекрасный выбор", "Круто",
-        "Офигенно", "Достойно", "Качественно", "На высоте", "Идеально",
-        "Безупречно", "Роскошно", "Восхитительно", "Первоклассно"
-    ]
+    if len(digits) >= 4:
+        return digits
     
-    texts2 = [
-        "всё пришло быстро", "получил моментально", "купил без проблем",
-        "оформил легко", "взял сразу", "заказал и получил", "скачал за минуту",
-        "посмотрел всё", "оценил качество", "проверил - работает",
-        "доволен полностью", "очень понравилось", "качество топ",
-        "скорость отличная", "рекомендую друзьям"
-    ]
+    result = ''
+    for char in encoded_string:
+        if char.isdigit():
+            result += char
     
-    texts3 = [
-        "Рекомендую!", "Советую!", "Не пожалел!", "Буду брать еще!",
-        "Доволен!", "Спасибо!", "10 из 10!", "Топ!", "Реально работает!",
-        "Без обмана!", "Очень выгодно!", "Поддержка отличная!", "Лучшее!",
-        "Повторю!", "Всем советую!", "Кайф!", "Огонь!", "Супер!"
-    ]
-    
-    items = [
-        "детский архив", "архив 6-9", "архив 10-12", "VIP доступ",
-        "полный доступ", "видео архив", "фото архив", "эксклюзив",
-        "премиум набор", "полный пакет", "мега архив"
-    ]
-    
-    print("🔄 ГЕНЕРАЦИЯ 10 000+ ОТЗЫВОВ...")
-    
-    for i in range(12000):
-        r = random.randint(1, 6)
-        if r == 1:
-            review = f"{random.choice(texts1)}! {random.choice(texts2)}. {random.choice(texts3)}"
-        elif r == 2:
-            review = f"Купил {random.choice(items)}. {random.choice(texts2)}. {random.choice(texts3)}"
-        elif r == 3:
-            review = f"{random.choice(texts1)}. {random.choice(texts3)} {random.choice(texts2)}"
-        elif r == 4:
-            review = f"{random.choice(texts2)}. {random.choice(texts1)}! {random.choice(texts3)}"
-        elif r == 5:
-            review = f"{random.choice(texts3)} {random.choice(texts1)}. {random.choice(texts2)}"
-        else:
-            review = f"{random.choice(['Уже второй', 'Уже третий', 'Уже пятый'])} раз покупаю {random.choice(items)}. {random.choice(texts3)}"
-        
-        reviews.add(review)
-    
-    result = list(reviews)
-    print(f"✅ СГЕНЕРИРОВАНО {len(result)} УНИКАЛЬНЫХ ОТЗЫВОВ!")
     return result
 
-print("🔄 ЗАПУСК ГЕНЕРАЦИИ...")
-REVIEW_TEMPLATES = generate_10000_reviews()
+# ========== КЛАВИАТУРЫ ==========
+def get_main_keyboard():
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📊 Статус", callback_data="status"),
+         InlineKeyboardButton(text="▶️ Старт", callback_data="start_spam"),
+         InlineKeyboardButton(text="⏹️ Стоп", callback_data="stop_spam")],
+        [InlineKeyboardButton(text="🎯 Управление целями", callback_data="targets_menu"),
+         InlineKeyboardButton(text="💬 Управление сообщениями", callback_data="messages_menu")],
+        [InlineKeyboardButton(text="⚙️ Настройки задержки", callback_data="delay_menu"),
+         InlineKeyboardButton(text="🔐 Управление аккаунтом", callback_data="account_menu")],
+        [InlineKeyboardButton(text="🔄 Перезапустить бота", callback_data="restart")]
+    ])
+    return keyboard
 
-def generate_fake_review():
-    global used_reviews
-    if len(used_reviews) >= len(REVIEW_TEMPLATES):
-        used_reviews = []
-        print("🔄 ВСЕ ОТЗЫВЫ ИСПОЛЬЗОВАНЫ, НАЧИНАЕМ ЗАНОВО!")
+def get_targets_keyboard(targets):
+    builder = InlineKeyboardBuilder()
     
-    available = [t for t in REVIEW_TEMPLATES if t not in used_reviews]
-    template = random.choice(available) if available else random.choice(REVIEW_TEMPLATES)
-    used_reviews.append(template)
+    for i, target in enumerate(targets):
+        builder.add(InlineKeyboardButton(text=f"❌ {target}", callback_data=f"del_target_{i}"))
     
-    stars = random.choice(["⭐️⭐️⭐️⭐️⭐️", "⭐️⭐️⭐️⭐️⭐️", "⭐️⭐️⭐️⭐️⭐️", "⭐️⭐️⭐️⭐️", "⭐️⭐️⭐️⭐️⭐️"])
-    date = datetime.now().strftime("%d.%m.%Y")
-    return f"{stars} {template}\n📅 {date}"
+    builder.add(InlineKeyboardButton(text="➕ Добавить цель", callback_data="add_target"))
+    builder.add(InlineKeyboardButton(text="🗑️ Очистить все цели", callback_data="clear_targets"))
+    builder.add(InlineKeyboardButton(text="🔙 Назад", callback_data="back_main"))
+    builder.adjust(1)
+    
+    return builder.as_markup()
 
-def post_review_to_group():
-    global auto_enabled
-    if not auto_enabled:
+def get_messages_keyboard():
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="➕ Добавить группу сообщений", callback_data="add_group")],
+        [InlineKeyboardButton(text="📋 Список групп", callback_data="list_groups")],
+        [InlineKeyboardButton(text="🗑️ Очистить все группы", callback_data="clear_groups")],
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="back_main")]
+    ])
+    return keyboard
+
+def get_delay_keyboard(current_min, current_max):
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🐢 3-7 сек (быстро)", callback_data="delay_3_7")],
+        [InlineKeyboardButton(text="⚡ 5-10 сек (стандарт)", callback_data="delay_5_10")],
+        [InlineKeyboardButton(text="🐌 10-20 сек (медленно)", callback_data="delay_10_20")],
+        [InlineKeyboardButton(text="🎲 Свои значения", callback_data="delay_custom")],
+        [InlineKeyboardButton(text=f"📊 Текущие: {current_min}-{current_max} сек", callback_data="noop")],
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="back_main")]
+    ])
+    return keyboard
+
+def get_account_keyboard(is_logged):
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📱 Войти в аккаунт", callback_data="login_start")] if not is_logged else
+        [InlineKeyboardButton(text="🚪 Выйти из аккаунта", callback_data="logout")],
+        [InlineKeyboardButton(text="👤 Инфо об аккаунте", callback_data="account_info")] if is_logged else [],
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="back_main")]
+    ])
+    return keyboard
+
+# ========== ЮЗЕРБОТ ==========
+async def send_loop():
+    print("[USERBOT] Цикл отправки запущен")
+    while True:
+        cfg = load_settings()
+        if not cfg.get("running"):
+            await asyncio.sleep(2)
+            continue
+        
+        message_groups = cfg.get("message_groups", [])
+        targets = cfg.get("targets", [])
+        delay_min = cfg.get("delay_min", 5)
+        delay_max = cfg.get("delay_max", 10)
+        
+        if not message_groups or not targets:
+            await asyncio.sleep(3)
+            continue
+        
+        for target in targets:
+            for group in message_groups:
+                cfg = load_settings()
+                if not cfg.get("running"):
+                    break
+                
+                for msg in group:
+                    cfg = load_settings()
+                    if not cfg.get("running"):
+                        break
+                    
+                    delay = random.uniform(delay_min, delay_max)
+                    await asyncio.sleep(delay)
+                    
+                    try:
+                        await user_client.send_message(target, msg)
+                        print(f"[SENT] -> {target}: {msg[:50]}...")
+                    except Exception as e:
+                        print(f"[ERROR] {target}: {e}")
+        await asyncio.sleep(3)
+
+# ========== БОТ УПРАВЛЕНИЯ ==========
+bot = Bot(token=BOT_TOKEN)
+dp = Dispatcher()
+
+@dp.message(Command("start"))
+async def cmd_start(message: Message):
+    await message.answer(
+        "✨ **Добро пожаловать в UserBot Manager!** ✨\n\n"
+        "Я помогу тебе управлять рассылкой сообщений в Telegram.\n"
+        "Используй кнопки ниже для навигации 👇\n\n"
+        "📌 **Совет:** Сначала авторизуйся в аккаунте через меню \"Управление аккаунтом\"",
+        reply_markup=get_main_keyboard(),
+        parse_mode="Markdown"
+    )
+
+@dp.callback_query()
+async def handle_callback(callback: CallbackQuery):
+    data = callback.data
+    cfg = load_settings()
+    
+    # ===== СТАТУС =====
+    if data == "status":
+        is_logged = user_client is not None
+        status_text = (
+            "📊 **СТАТУС СИСТЕМЫ**\n\n"
+            f"🔐 Аккаунт: {'✅ ВОШЕЛ' if is_logged else '❌ НЕ ВОШЕЛ'}\n"
+            f"▶️ Рассылка: {'АКТИВНА' if cfg['running'] else 'ОСТАНОВЛЕНА'}\n"
+            f"🎯 Целей: {len(cfg['targets'])}\n"
+            f"💬 Групп сообщений: {len(cfg['message_groups'])}\n"
+            f"⏱️ Задержка: {cfg['delay_min']} - {cfg['delay_max']} сек\n"
+            f"📱 Номер: {cfg.get('phone_number', '❌ Не указан')}"
+        )
+        await callback.message.edit_text(status_text, parse_mode="Markdown", reply_markup=get_main_keyboard())
+    
+    # ===== ЗАПУСК/СТОП =====
+    elif data == "start_spam":
+        if not user_client:
+            await callback.answer("❌ Сначала войди в аккаунт!", show_alert=True)
+        else:
+            cfg["running"] = True
+            save_settings(cfg)
+            await callback.answer("✅ Рассылка запущена!", show_alert=True)
+            await callback.message.edit_text("✅ **Рассылка активирована!**\n\nСообщения начали отправляться.", 
+                                           reply_markup=get_main_keyboard(), parse_mode="Markdown")
+    
+    elif data == "stop_spam":
+        cfg["running"] = False
+        save_settings(cfg)
+        await callback.answer("⏹️ Рассылка остановлена!", show_alert=True)
+        await callback.message.edit_text("⏹️ **Рассылка остановлена**\n\nЧтобы запустить снова - нажми 'Старт'.",
+                                       reply_markup=get_main_keyboard(), parse_mode="Markdown")
+    
+    # ===== ЦЕЛИ =====
+    elif data == "targets_menu":
+        targets = cfg.get("targets", [])
+        if not targets:
+            await callback.message.edit_text(
+                "🎯 **Управление целями**\n\n"
+                "Список целей пуст.\n\n"
+                "📝 **Как добавить цель:**\n"
+                "Отправь команду: `/addtarget @username`\n\n"
+                "💡 Пример: `/addtarget @durov`",
+                reply_markup=get_targets_keyboard([]),
+                parse_mode="Markdown"
+            )
+        else:
+            targets_list = "\n".join([f"• {t}" for t in targets])
+            await callback.message.edit_text(
+                f"🎯 **Управление целями**\n\n"
+                f"**Текущие цели:**\n{targets_list}\n\n"
+                f"📝 **Добавить новую:** `/addtarget @username`\n"
+                f"❌ **Удалить:** Нажми на цель ниже",
+                reply_markup=get_targets_keyboard(targets),
+                parse_mode="Markdown"
+            )
+    
+    elif data.startswith("del_target_"):
+        idx = int(data.split("_")[2])
+        targets = cfg.get("targets", [])
+        if 0 <= idx < len(targets):
+            removed = targets.pop(idx)
+            cfg["targets"] = targets
+            save_settings(cfg)
+            await callback.answer(f"✅ Удалено: {removed}", show_alert=True)
+            
+            # Обновляем меню
+            if not targets:
+                await callback.message.edit_text(
+                    "🎯 **Управление целями**\n\n"
+                    "Список целей пуст.\n\n"
+                    "📝 **Как добавить цель:**\n"
+                    "Отправь команду: `/addtarget @username`",
+                    reply_markup=get_targets_keyboard([]),
+                    parse_mode="Markdown"
+                )
+            else:
+                targets_list = "\n".join([f"• {t}" for t in targets])
+                await callback.message.edit_text(
+                    f"🎯 **Управление целями**\n\n"
+                    f"**Текущие цели:**\n{targets_list}",
+                    reply_markup=get_targets_keyboard(targets),
+                    parse_mode="Markdown"
+                )
+    
+    elif data == "add_target":
+        await callback.message.edit_text(
+            "➕ **Добавление цели**\n\n"
+            "Отправь команду:\n"
+            "`/addtarget @username`\n\n"
+            "📌 **Важно:**\n"
+            "• Цель может быть username или ID чата\n"
+            "• Пример: `/addtarget @durov`\n"
+            "• После добавления цель появится в списке",
+            reply_markup=get_targets_keyboard(load_settings().get("targets", [])),
+            parse_mode="Markdown"
+        )
+    
+    elif data == "clear_targets":
+        cfg["targets"] = []
+        save_settings(cfg)
+        await callback.answer("🗑️ Все цели очищены!", show_alert=True)
+        await callback.message.edit_text(
+            "🎯 **Управление целями**\n\n"
+            "Список целей пуст.\n\n"
+            "📝 **Как добавить цель:**\n"
+            "Отправь команду: `/addtarget @username`",
+            reply_markup=get_targets_keyboard([]),
+            parse_mode="Markdown"
+        )
+    
+    # ===== СООБЩЕНИЯ =====
+    elif data == "messages_menu":
+        groups = cfg.get("message_groups", [])
+        groups_count = len(groups)
+        total_msgs = sum(len(g) for g in groups)
+        
+        await callback.message.edit_text(
+            f"💬 **Управление сообщениями**\n\n"
+            f"📊 **Статистика:**\n"
+            f"• Групп сообщений: {groups_count}\n"
+            f"• Всего сообщений: {total_msgs}\n\n"
+            f"📝 **Как добавить группу:**\n"
+            f"`/addgroup текст1 | текст2 | текст3`\n\n"
+            f"💡 **Важно:**\n"
+            f"• Сообщения в группе отправляются последовательно\n"
+            f"• Разделитель: `|` (вертикальная черта)",
+            reply_markup=get_messages_keyboard(),
+            parse_mode="Markdown"
+        )
+    
+    elif data == "list_groups":
+        groups = cfg.get("message_groups", [])
+        if not groups:
+            await callback.message.edit_text(
+                "📋 **Список групп сообщений**\n\n"
+                "Группы отсутствуют.\n\n"
+                "Добавь первую группу:\n"
+                "`/addgroup Привет | Как дела?`",
+                reply_markup=get_messages_keyboard(),
+                parse_mode="Markdown"
+            )
+        else:
+            text = "📋 **Твои группы сообщений:**\n\n"
+            for i, group in enumerate(groups, 1):
+                text += f"**Группа {i}** ({len(group)} сообщений):\n"
+                for j, msg in enumerate(group[:2], 1):
+                    preview = msg[:40] + "..." if len(msg) > 40 else msg
+                    text += f"  {j}. {preview}\n"
+                if len(group) > 2:
+                    text += f"  ... и еще {len(group)-2}\n"
+                text += "\n"
+            
+            text += "🗑️ **Очистить все:** /cleargroups"
+            await callback.message.edit_text(text, reply_markup=get_messages_keyboard(), parse_mode="Markdown")
+    
+    elif data == "add_group":
+        await callback.message.edit_text(
+            "➕ **Добавление группы сообщений**\n\n"
+            "Отправь команду:\n"
+            "`/addgroup сообщение1 | сообщение2 | сообщение3`\n\n"
+            "📌 **Примеры:**\n"
+            "• `/addgroup Привет! | Как дела? | Что нового?`\n"
+            "• `/addgroup /start | Помощь: /help`\n\n"
+            "💡 **Совет:** Используй `|` для разделения сообщений",
+            reply_markup=get_messages_keyboard(),
+            parse_mode="Markdown"
+        )
+    
+    elif data == "clear_groups":
+        cfg["message_groups"] = []
+        save_settings(cfg)
+        await callback.answer("🗑️ Все группы сообщений очищены!", show_alert=True)
+        await callback.message.edit_text(
+            "💬 **Управление сообщениями**\n\n"
+            "Все группы удалены.\n\n"
+            "Добавь новую группу: `/addgroup ...`",
+            reply_markup=get_messages_keyboard(),
+            parse_mode="Markdown"
+        )
+    
+    # ===== ЗАДЕРЖКА =====
+    elif data == "delay_menu":
+        await callback.message.edit_text(
+            "⚙️ **Настройка задержки**\n\n"
+            "Выбери интервал между отправкой сообщений:\n\n"
+            f"📊 **Текущая задержка:** {cfg['delay_min']} - {cfg['delay_max']} сек\n\n"
+            "⚠️ **Внимание:**\n"
+            "• Слишком маленькая задержка = риск бана\n"
+            "• Рекомендуем 5-10 секунд",
+            reply_markup=get_delay_keyboard(cfg['delay_min'], cfg['delay_max']),
+            parse_mode="Markdown"
+        )
+    
+    elif data.startswith("delay_"):
+        if data == "delay_3_7":
+            cfg["delay_min"], cfg["delay_max"] = 3, 7
+        elif data == "delay_5_10":
+            cfg["delay_min"], cfg["delay_max"] = 5, 10
+        elif data == "delay_10_20":
+            cfg["delay_min"], cfg["delay_max"] = 10, 20
+        elif data == "delay_custom":
+            await callback.message.edit_text(
+                "🎲 **Свои значения**\n\n"
+                "Отправь команду:\n"
+                "`/setdelay 8 15`\n\n"
+                "Где 8 - минимальная задержка, 15 - максимальная",
+                reply_markup=get_delay_keyboard(cfg['delay_min'], cfg['delay_max']),
+                parse_mode="Markdown"
+            )
+            return
+        
+        save_settings(cfg)
+        await callback.answer(f"✅ Задержка: {cfg['delay_min']}-{cfg['delay_max']} сек", show_alert=True)
+        await callback.message.edit_text(
+            f"⚙️ **Настройка задержки**\n\n"
+            f"✅ **Новая задержка:** {cfg['delay_min']} - {cfg['delay_max']} секунд\n\n"
+            f"Чтобы изменить - выбери другой вариант",
+            reply_markup=get_delay_keyboard(cfg['delay_min'], cfg['delay_max']),
+            parse_mode="Markdown"
+        )
+    
+    # ===== АККАУНТ =====
+    elif data == "account_menu":
+        is_logged = user_client is not None
+        await callback.message.edit_text(
+            "🔐 **Управление аккаунтом**\n\n"
+            f"📊 **Текущий статус:** {'✅ ВОШЕЛ' if is_logged else '❌ НЕ ВОШЕЛ'}\n\n"
+            "🔑 **Как войти:**\n"
+            "1. Нажми 'Войти в аккаунт'\n"
+            "2. Отправь номер: `/login +71234567890`\n"
+            "3. Введи код: `/code 1#2#3#4#5`\n"
+            "4. Если нужно - 2FA пароль: `/password mypass`",
+            reply_markup=get_account_keyboard(is_logged),
+            parse_mode="Markdown"
+        )
+    
+    elif data == "login_start":
+        await callback.message.edit_text(
+            "📱 **Вход в аккаунт**\n\n"
+            "**Шаг 1:** Отправь номер телефона\n"
+            "`/login +71234567890`\n\n"
+            "**Шаг 2:** После получения кода отправь его\n"
+            "`/code 1#2#3#4#5`\n\n"
+            "**Шаг 3:** Если есть 2FA пароль\n"
+            "`/password твой_пароль`\n\n"
+            "💡 **Совет:** Код можно отправлять в любом формате с разделителями для защиты от блокировки",
+            reply_markup=get_account_keyboard(False),
+            parse_mode="Markdown"
+        )
+    
+    elif data == "account_info":
+        if user_client:
+            try:
+                me = await user_client.get_me()
+                await callback.answer(f"👤 {me.first_name} (@{me.username})", show_alert=True)
+            except:
+                await callback.answer("❌ Не удалось получить инфо", show_alert=True)
+        else:
+            await callback.answer("❌ Не авторизован", show_alert=True)
+    
+    elif data == "logout":
+        global user_client, send_task
+        if user_client:
+            await user_client.disconnect()
+            user_client = None
+        if send_task:
+            send_task.cancel()
+            send_task = None
+        cfg["phone_number"] = None
+        cfg["running"] = False
+        save_settings(cfg)
+        await callback.answer("🚪 Вышел из аккаунта!", show_alert=True)
+        await callback.message.edit_text(
+            "🔐 **Управление аккаунтом**\n\n"
+            "✅ **Вы вышли из аккаунта**\n\n"
+            "Чтобы войти снова - нажми 'Войти в аккаунт'",
+            reply_markup=get_account_keyboard(False),
+            parse_mode="Markdown"
+        )
+    
+    # ===== НАЗАД =====
+    elif data == "back_main":
+        await callback.message.edit_text(
+            "✨ **Главное меню** ✨\n\n"
+            "Выбери действие:",
+            reply_markup=get_main_keyboard(),
+            parse_mode="Markdown"
+        )
+    
+    elif data == "restart":
+        await callback.message.edit_text(
+            "🔄 **Перезагрузка бота...**\n\n"
+            "Бот будет перезапущен через 2 секунды",
+            reply_markup=get_main_keyboard(),
+            parse_mode="Markdown"
+        )
+        await asyncio.sleep(2)
+        await callback.message.edit_text(
+            "✨ **Бот перезапущен!** ✨\n\n"
+            "Выбери действие:",
+            reply_markup=get_main_keyboard(),
+            parse_mode="Markdown"
+        )
+    
+    await callback.answer()
+
+# ===== КОМАНДЫ =====
+@dp.message(Command("addtarget"))
+async def cmd_add_target(message: Message):
+    target = message.text.replace("/addtarget", "").strip()
+    if not target:
+        await message.answer("❌ Укажи цель: `/addtarget @username`", parse_mode="Markdown")
         return
     
-    review = generate_fake_review()
-    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-    data = {
-        "chat_id": GROUP_CHAT_ID,
-        "text": f"📢 {review}",
-        "parse_mode": "HTML"
-    }
+    cfg = load_settings()
+    if target not in cfg["targets"]:
+        cfg["targets"].append(target)
+        save_settings(cfg)
+        await message.answer(f"✅ **Цель добавлена:** {target}\n\n📊 Всего целей: {len(cfg['targets'])}", parse_mode="Markdown")
+    else:
+        await message.answer(f"⚠️ Цель {target} уже существует", parse_mode="Markdown")
+
+@dp.message(Command("addgroup"))
+async def cmd_add_group(message: Message):
+    text = message.text.replace("/addgroup", "").strip()
+    if not text:
+        await message.answer("❌ Формат: `/addgroup текст1 | текст2 | текст3`", parse_mode="Markdown")
+        return
+    
+    group = [x.strip() for x in text.split("|") if x.strip()]
+    if not group:
+        await message.answer("❌ Группа сообщений пуста", parse_mode="Markdown")
+        return
+    
+    cfg = load_settings()
+    cfg["message_groups"].append(group)
+    save_settings(cfg)
+    await message.answer(
+        f"✅ **Группа добавлена!**\n\n"
+        f"📝 Сообщений в группе: {len(group)}\n"
+        f"📊 Всего групп: {len(cfg['message_groups'])}",
+        parse_mode="Markdown"
+    )
+
+@dp.message(Command("setdelay"))
+async def cmd_set_delay(message: Message):
+    parts = message.text.replace("/setdelay", "").strip().split()
+    if len(parts) != 2:
+        await message.answer("❌ Формат: `/setdelay 5 10`\nГде 5 - мин, 10 - макс", parse_mode="Markdown")
+        return
+    
     try:
-        requests.post(url, data=data)
-        print(f"[{datetime.now()}] Отзыв #{len(used_reviews)} отправлен")
-    except Exception as e:
-        print(f"Ошибка: {e}")
+        delay_min = int(parts[0])
+        delay_max = int(parts[1])
+        
+        if delay_min < 1 or delay_max < delay_min:
+            await message.answer("❌ Неверные значения: мин >= 1, макс > мин", parse_mode="Markdown")
+            return
+        
+        cfg = load_settings()
+        cfg["delay_min"] = delay_min
+        cfg["delay_max"] = delay_max
+        save_settings(cfg)
+        
+        await message.answer(
+            f"✅ **Задержка обновлена!**\n\n"
+            f"⏱️ Минимальная: {delay_min} сек\n"
+            f"⏱️ Максимальная: {delay_max} сек",
+            parse_mode="Markdown"
+        )
+    except ValueError:
+        await message.answer("❌ Введи числа! Пример: `/setdelay 5 10`", parse_mode="Markdown")
 
-def auto_review_loop():
-    """ОТЗЫВЫ КАЖДЫЕ 20 СЕКУНД"""
-    while True:
-        time.sleep(20)  # 20 СЕКУНД ВМЕСТО 60!
-        post_review_to_group()
+@dp.message(Command("cleargroups"))
+async def cmd_clear_groups(message: Message):
+    cfg = load_settings()
+    count = len(cfg.get("message_groups", []))
+    cfg["message_groups"] = []
+    save_settings(cfg)
+    await message.answer(f"🗑️ **Очищено {count} групп сообщений**", parse_mode="Markdown")
 
-threading.Thread(target=auto_review_loop, daemon=True).start()
-print("🤖 АВТО-ОТЗЫВЫ КАЖДЫЕ 20 СЕКУНД!")
+@dp.message(Command("cleartargets"))
+async def cmd_clear_targets(message: Message):
+    cfg = load_settings()
+    count = len(cfg.get("targets", []))
+    cfg["targets"] = []
+    save_settings(cfg)
+    await message.answer(f"🗑️ **Очищено {count} целей**", parse_mode="Markdown")
 
-# ========== АВТО-ПИНГ ==========
-def ping_self():
-    while True:
-        time.sleep(600)
-        try:
-            requests.get("https://telegram-bot-si0v.onrender.com", timeout=10)
-            print(f"[{datetime.now()}] Self-ping OK")
-        except:
-            pass
-
-threading.Thread(target=ping_self, daemon=True).start()
-print("🔄 СЕЛФ-ПИНГ КАЖДЫЕ 10 МИНУТ!")
-
-# ========== ФУНКЦИИ БОТА ==========
-def send_message(chat_id, text, keyboard=None):
-    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-    data = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
-    if keyboard:
-        data["reply_markup"] = json.dumps(keyboard)
+# ===== ЛОГИН КОМАНДЫ =====
+@dp.message(Command("login"))
+async def cmd_login(message: Message):
+    phone = message.text.replace("/login", "").strip()
+    if not phone or not phone.startswith("+"):
+        await message.answer("❌ Формат: `/login +71234567890`", parse_mode="Markdown")
+        return
+    
+    user_id = message.from_user.id
+    
     try:
-        requests.post(url, data=data)
+        session_name = f"temp_{user_id}_{int(asyncio.get_event_loop().time())}"
+        client = TelegramClient(session_name, API_ID, API_HASH)
+        await client.connect()
+        await client.send_code_request(phone)
+        
+        pending_auth[user_id] = {
+            "step": "waiting_code",
+            "client": client,
+            "phone": phone,
+            "session_name": session_name
+        }
+        
+        await message.answer(
+            f"📱 **Код отправлен на {phone}**\n\n"
+            f"Отправь код командой:\n"
+            f"`/code 1#2#3#4#5`\n\n"
+            f"💡 **Совет:** Код можно отправить в любом формате с любыми разделителями",
+            parse_mode="Markdown"
+        )
     except Exception as e:
-        print(f"Ошибка: {e}")
+        await message.answer(f"❌ Ошибка: {str(e)}", parse_mode="Markdown")
 
-def edit_message(chat_id, message_id, text, keyboard=None):
-    url = f"https://api.telegram.org/bot{TOKEN}/editMessageText"
-    data = {"chat_id": chat_id, "message_id": message_id, "text": text, "parse_mode": "HTML"}
-    if keyboard:
-        data["reply_markup"] = json.dumps(keyboard)
+@dp.message(Command("code"))
+async def cmd_code(message: Message):
+    import re
+    raw_code = message.text.replace("/code", "").strip()
+    user_id = message.from_user.id
+    
+    if user_id not in pending_auth:
+        await message.answer("❌ Сначала выполни `/login +номер`", parse_mode="Markdown")
+        return
+    
+    auth_data = pending_auth[user_id]
+    if auth_data["step"] != "waiting_code":
+        await message.answer("❌ Неправильный шаг. Сначала /login", parse_mode="Markdown")
+        return
+    
+    code = decode_code(raw_code)
+    if not code or len(code) < 4:
+        await message.answer(
+            f"❌ Не могу распознать код из: `{raw_code}`\n\n"
+            f"Примеры правильных форматов:\n"
+            f"• `/code 1#2#3#4#5`\n"
+            f"• `/code 1-2-3-4-5`\n"
+            f"• `/code 12345`",
+            parse_mode="Markdown"
+        )
+        return
+    
+    await message.answer(f"🔍 **Распознал код:** `{code}`\n⏳ Пытаюсь войти...", parse_mode="Markdown")
+    
     try:
-        requests.post(url, data=data)
+        client = auth_data["client"]
+        phone = auth_data["phone"]
+        await client.sign_in(phone, code=code)
+        
+        global user_client, send_task
+        user_client = client
+        
+        cfg = load_settings()
+        cfg["phone_number"] = phone
+        cfg["session_name"] = auth_data["session_name"]
+        save_settings(cfg)
+        
+        if send_task:
+            send_task.cancel()
+        send_task = asyncio.create_task(send_loop())
+        
+        del pending_auth[user_id]
+        
+        await message.answer(
+            f"✅ **Успешный вход!**\n\n"
+            f"📱 Аккаунт: {phone}\n"
+            f"🎉 Теперь ты можешь запустить рассылку через кнопку 'Старт'",
+            parse_mode="Markdown"
+        )
+    except errors.SessionPasswordNeededError:
+        pending_auth[user_id]["step"] = "need_password"
+        await message.answer(
+            "🔐 **Требуется 2FA пароль!**\n\n"
+            f"Отправь пароль командой:\n"
+            f"`/password ТВОЙ_ПАРОЛЬ`",
+            parse_mode="Markdown"
+        )
     except Exception as e:
-        print(f"Ошибка: {e}")
+        await message.answer(f"❌ Ошибка: {str(e)}", parse_mode="Markdown")
 
-def log_pedophile(user_id, username, first_name, action, details=""):
-    write_pediki(user_id, username, first_name, action, details)
-
-# ========== КЛАВИАТУРЫ ==========
-main_menu = {
-    "inline_keyboard": [
-        [{"text": "📸 ПРИВАТНЫЙ АРХИВ", "callback_data": "catalog"}],
-        [{"text": "💎 VIP ЭКСКЛЮЗИВ", "callback_data": "vip"}],
-        [{"text": "📢 ОТЗЫВЫ КЛИЕНТОВ", "callback_data": "reviews"}],
-        [{"text": "❓ ПОМОЩЬ", "callback_data": "help"}]
-    ]
-}
-
-catalog_menu = {
-    "inline_keyboard": [
-        [{"text": "👧 ДЕВОЧКИ 6-9 ЛЕТ - 150⭐", "callback_data": "buy_girls"}],
-        [{"text": "👦 МАЛЬЧИКИ 6-9 ЛЕТ - 150⭐", "callback_data": "buy_boys"}],
-        [{"text": "🌸 ШКОЛЬНИЦЫ 10-12 ЛЕТ - 200⭐", "callback_data": "buy_teen"}],
-        [{"text": "🎬 ВИДЕО АРХИВ - 300⭐", "callback_data": "buy_video"}],
-        [{"text": "◀️ НАЗАД", "callback_data": "back_main"}]
-    ]
-}
-
-vip_menu = {
-    "inline_keyboard": [
-        [{"text": "🌟 САМЫЕ МАЛЕНЬКИЕ - 500⭐", "callback_data": "buy_smallest"}],
-        [{"text": "👑 ПОЛНЫЙ ДОСТУП - 1000⭐", "callback_data": "buy_all"}],
-        [{"text": "◀️ НАЗАД", "callback_data": "back_main"}]
-    ]
-}
-
-admin_menu = {
-    "inline_keyboard": [
-        [{"text": "📝 ПОСТИТЬ ОТЗЫВ", "callback_data": "admin_post"}],
-        [{"text": "📊 СТАТИСТИКА", "callback_data": "admin_stats"}],
-        [{"text": "📢 РАССЫЛКА", "callback_data": "admin_broadcast"}],
-        [{"text": "⏹ СТОП АВТО", "callback_data": "admin_stop"}],
-        [{"text": "▶️ СТАРТ АВТО", "callback_data": "admin_start"}],
-        [{"text": "◀️ НАЗАД", "callback_data": "back_main"}]
-    ]
-}
-
-# ========== ОСНОВНОЙ КОД ==========
-@app.route('/webhook', methods=['POST'])
-def webhook():
-    global auto_enabled, waiting_for_broadcast
+@dp.message(Command("password"))
+async def cmd_password(message: Message):
+    password = message.text.replace("/password", "").strip()
+    user_id = message.from_user.id
     
-    update = request.get_json()
-    if not update:
-        return 'ok', 200
+    if user_id not in pending_auth:
+        await message.answer("❌ Сначала выполни `/login` и `/code`", parse_mode="Markdown")
+        return
     
-    if 'callback_query' in update:
-        cb = update['callback_query']
-        data = cb['data']
-        chat_id = cb['message']['chat']['id']
-        message_id = cb['message']['message_id']
-        user = cb.get('from', {})
-        user_id = user.get('id')
-        username = user.get('username')
-        first_name = user.get('first_name')
-        
-        requests.post(f"https://api.telegram.org/bot{TOKEN}/answerCallbackQuery",
-            data={"callback_query_id": cb['id']})
-        
-        if data == "catalog":
-            edit_message(chat_id, message_id, "📸 ПРИВАТНЫЙ АРХИВ\n\nВыбери категорию:", catalog_menu)
-        elif data == "vip":
-            edit_message(chat_id, message_id, "💎 VIP ЭКСКЛЮЗИВ\n\nВыбери пакет:", vip_menu)
-        elif data == "reviews":
-            edit_message(chat_id, message_id,
-                f"📢 <b>ОТЗЫВЫ НАШИХ КЛИЕНТОВ</b> 📢\n\n"
-                f"⭐️ <b>{len(used_reviews)}+ ДОВОЛЬНЫХ ПОКУПАТЕЛЕЙ</b>\n"
-                f"📝 <b>{len(REVIEW_TEMPLATES)}+ РЕАЛЬНЫХ ОТЗЫВОВ</b>\n\n"
-                f"👇 <b>ПЕРЕЙДИ В НАШ КАНАЛ:</b>\n"
-                f"{REVIEWS_GROUP_LINK}",
-                {"inline_keyboard": [[{"text": "📢 ПЕРЕЙТИ", "url": REVIEWS_GROUP_LINK}], [{"text": "◀️ НАЗАД", "callback_data": "back_main"}]]})
-        elif data == "help":
-            edit_message(chat_id, message_id, f"❓ ПОМОЩЬ\n\n1. Выбери категорию\n2. Оплати звездами на {PAYMENT_BOT}\n\nВопросы: {SUPPORT_BOT}", main_menu)
-        elif data == "back_main":
-            edit_message(chat_id, message_id, "🔞 PRIVATE ARCHIVE\n\nГлавное меню:", main_menu)
-        
-        # АДМИН
-        elif data == "admin_panel" and user_id == ADMIN_ID:
-            edit_message(chat_id, message_id, "👑 АДМИН ПАНЕЛЬ", admin_menu)
-        elif data == "admin_post" and user_id == ADMIN_ID:
-            post_review_to_group()
-            edit_message(chat_id, message_id, "✅ ОТЗЫВ ОТПРАВЛЕН!", admin_menu)
-        elif data == "admin_stats" and user_id == ADMIN_ID:
-            ped_count = len(read_pediki())
-            users_count = len(get_all_users())
-            edit_message(chat_id, message_id, 
-                f"📊 СТАТИСТИКА\n\n"
-                f"👥 Педофилов: {ped_count}\n"
-                f"📝 Пользователей: {users_count}\n"
-                f"⭐️ Отзывов в базе: {len(REVIEW_TEMPLATES)}\n"
-                f"✅ Отправлено: {len(used_reviews)}\n"
-                f"🤖 Авто: {'ВКЛ' if auto_enabled else 'ВЫКЛ'}", admin_menu)
-        elif data == "admin_broadcast" and user_id == ADMIN_ID:
-            send_message(chat_id, "📢 ВВЕДИ СООБЩЕНИЕ ДЛЯ РАССЫЛКИ:")
-            waiting_for_broadcast[user_id] = True
-            edit_message(chat_id, message_id, "👑 АДМИН ПАНЕЛЬ", admin_menu)
-        elif data == "admin_stop" and user_id == ADMIN_ID:
-            auto_enabled = False
-            edit_message(chat_id, message_id, "⏹ АВТО ОСТАНОВЛЕН", admin_menu)
-        elif data == "admin_start" and user_id == ADMIN_ID:
-            auto_enabled = True
-            edit_message(chat_id, message_id, "▶️ АВТО ЗАПУЩЕН", admin_menu)
-        
-        # ПОКУПКИ
-        elif data.startswith("buy_"):
-            log_pedophile(user_id, username, first_name, "ВЫБРАЛ ПАКЕТ", data)
-            edit_message(chat_id, message_id,
-                f"✅ ВЫБРАН ПАКЕТ\n\n👇 ОПЛАТА: {PAYMENT_BOT}\nКод: {data}_{user_id}\n\nПосле оплаты: /confirm",
-                {"inline_keyboard": [[{"text": "💳 ОПЛАТИТЬ", "url": f"https://t.me/{PAYMENT_BOT[1:]}"}], [{"text": "◀️ НАЗАД", "callback_data": "catalog"}]]})
+    auth_data = pending_auth[user_id]
+    if auth_data["step"] != "need_password":
+        await message.answer("❌ 2FA пароль не требуется", parse_mode="Markdown")
+        return
     
-    if 'message' in update:
-        msg = update['message']
-        text = msg.get('text', '')
-        user = msg.get('from', {})
-        user_id = user.get('id')
-        username = user.get('username')
-        first_name = user.get('first_name')
-        chat_id = msg['chat']['id']
+    try:
+        client = auth_data["client"]
+        phone = auth_data["phone"]
+        await client.sign_in(password=password)
         
-        if waiting_for_broadcast.get(user_id, False):
-            broadcast_message(chat_id, text)
-            waiting_for_broadcast[user_id] = False
+        global user_client, send_task
+        user_client = client
         
-        elif text == '/start':
-            save_user(user_id)
-            log_pedophile(user_id, username, first_name, "СТАРТ", "Запустил бота")
-            send_message(chat_id, "🔞 PRIVATE ARCHIVE\n\nВыбери раздел:", main_menu)
-        elif text == '/admin' and user_id == ADMIN_ID:
-            send_message(chat_id, "👑 АДМИН ПАНЕЛЬ", admin_menu)
-        elif text.startswith('/confirm'):
-            log_pedophile(user_id, username, first_name, "ПОДТВЕРДИЛ ОПЛАТУ", text)
-            send_message(chat_id, "✅ ЗАПРОС ПОЛУЧЕН!\n\nСкоро получишь ссылку!")
-    
-    return 'ok', 200
+        cfg = load_settings()
+        cfg["phone_number"] = phone
+        cfg["session_name"] = auth_data["session_name"]
+        save_settings(cfg)
+        
+        if send_task:
+            send_task.cancel()
+        send_task = asyncio.create_task(send_loop())
+        
+        del pending_auth[user_id]
+        
+        await message.answer(
+            f"✅ **Успешный вход с 2FA!**\n\n"
+            f"📱 Аккаунт: {phone}\n"
+            f"🎉 Рассылку можно запускать",
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        await message.answer(f"❌ Ошибка: {str(e)}", parse_mode="Markdown")
 
-if __name__ == '__main__':
-    print("=" * 50)
-    print("🚀 БОТ ЗАПУЩЕН!")
-    print(f"📊 ОТЗЫВОВ В БАЗЕ: {len(REVIEW_TEMPLATES)}")
-    print("⚡️ ОТЗЫВЫ КАЖДЫЕ 20 СЕКУНД!")
-    print("🔄 СЕЛФ-ПИНГ КАЖДЫЕ 10 МИНУТ!")
-    print("📢 РАССЫЛКА: В АДМИНКЕ")
-    print("👑 АДМИН: /admin")
-    print("=" * 50)
-    app.run(host='0.0.0.0', port=10000)
+# ===== ЗАПУСК =====
+async def main():
+    print("🤖 Бот запущен на Render.com")
+    print("📱 Используй @BotFather чтобы настроить webhook или polling")
+    await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    asyncio.run(main())
