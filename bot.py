@@ -2,6 +2,7 @@ import asyncio
 import random
 import json
 import os
+import re
 from telethon import TelegramClient, errors
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
@@ -122,6 +123,7 @@ def get_account_keyboard(is_logged):
 # ========== ЮЗЕРБОТ ==========
 async def send_loop():
     print("[USERBOT] Цикл отправки запущен")
+    global user_client
     while True:
         cfg = load_settings()
         if not cfg.get("running"):
@@ -152,8 +154,9 @@ async def send_loop():
                     await asyncio.sleep(delay)
                     
                     try:
-                        await user_client.send_message(target, msg)
-                        print(f"[SENT] -> {target}: {msg[:50]}...")
+                        if user_client:
+                            await user_client.send_message(target, msg)
+                            print(f"[SENT] -> {target}: {msg[:50]}...")
                     except Exception as e:
                         print(f"[ERROR] {target}: {e}")
         await asyncio.sleep(3)
@@ -175,6 +178,8 @@ async def cmd_start(message: Message):
 
 @dp.callback_query()
 async def handle_callback(callback: CallbackQuery):
+    global user_client, send_task
+    
     data = callback.data
     cfg = load_settings()
     
@@ -243,7 +248,6 @@ async def handle_callback(callback: CallbackQuery):
             save_settings(cfg)
             await callback.answer(f"✅ Удалено: {removed}", show_alert=True)
             
-            # Обновляем меню
             if not targets:
                 await callback.message.edit_text(
                     "🎯 **Управление целями**\n\n"
@@ -439,7 +443,6 @@ async def handle_callback(callback: CallbackQuery):
             await callback.answer("❌ Не авторизован", show_alert=True)
     
     elif data == "logout":
-        global user_client, send_task
         if user_client:
             await user_client.disconnect()
             user_client = None
@@ -602,7 +605,6 @@ async def cmd_login(message: Message):
 
 @dp.message(Command("code"))
 async def cmd_code(message: Message):
-    import re
     raw_code = message.text.replace("/code", "").strip()
     user_id = message.from_user.id
     
