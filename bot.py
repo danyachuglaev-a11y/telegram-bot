@@ -185,7 +185,8 @@ async def send_message(
     text: str,
     reply_markup: Optional[Dict[str, Any]] = None,
     business_connection_id: Optional[str] = None,
-) -> None:
+    reply_to_message_id: Optional[int] = None,
+) -> bool:
     payload: Dict[str, Any] = {
         "chat_id": chat_id,
         "text": text,
@@ -195,7 +196,10 @@ async def send_message(
         payload["reply_markup"] = reply_markup
     if business_connection_id:
         payload["business_connection_id"] = business_connection_id
-    await api("sendMessage", payload)
+    if reply_to_message_id:
+        payload["reply_parameters"] = {"message_id": reply_to_message_id}
+    result = await api("sendMessage", payload)
+    return bool(result.get("ok"))
 
 
 async def answer_callback(callback_id: str, text: str = "") -> None:
@@ -311,7 +315,9 @@ async def handle_callback(callback: Dict[str, Any]) -> None:
             f"Автоответчик: {'включён' if settings.get('enabled') else 'выключен'}\n"
             f"Business connections: {len(settings.get('business_connections', {}))}\n"
             f"Отвеченных чатов: {len(settings.get('answered_chats', []))}\n"
-            f"Цена: {settings.get('default_price') or 'не задана'}"
+            f"Цена: {settings.get('default_price') or 'не задана'}\n\n"
+            f"Если видишь BUSINESS_PEER_INVALID — проверь в Telegram Business → Chatbots, "
+            f"что боту разрешено отвечать в личных чатах и этот диалог входит в доступные чаты."
         )
         await send_message(chat_id, text, main_menu())
 
@@ -324,9 +330,12 @@ async def handle_business_connection(conn: Dict[str, Any]) -> None:
     if conn_id:
         settings.setdefault("business_connections", {})[conn_id] = {
             "user_id": user.get("id"),
+            "user_chat_id": conn.get("user_chat_id"),
             "username": user.get("username"),
             "first_name": user.get("first_name"),
             "is_enabled": conn.get("is_enabled"),
+            "can_reply": conn.get("can_reply"),
+            "rights": conn.get("rights"),
         }
         save_settings()
         log.info("Business connection saved: %s", conn_id)
@@ -340,6 +349,7 @@ async def handle_business_message(message: Dict[str, Any]) -> None:
     from_user = message.get("from", {}) or {}
     chat_id = chat.get("id")
     from_id = from_user.get("id")
+    message_id = message.get("message_id")
     text = message.get("text") or message.get("caption") or ""
     bc_id = message.get("business_connection_id")
 
@@ -374,7 +384,29 @@ async def handle_business_message(message: Dict[str, Any]) -> None:
     if not reply:
         return
 
-    await send_message(chat_id, reply, business_connection_id=bc_id)
+    ok = await send_message(
+        chat_id,
+        reply,
+        business_connection_id=bc_id,
+        reply_to_message_id=message_id,
+    )
+
+    # Иногда Telegram отдаёт BUSINESS_PEER_INVALID, если chat.id не совпал с peer.
+    # Для личных Business-диалогов пробуем fallback на from.id.
+    if not ok and from_id and from_id != chat_id:
+        log.info("Retry business reply via from_id=%s instead of chat_id=%s", from_id, chat_id)
+        ok = await send_message(
+            from_id,
+            reply,
+            business_connection_id=bc_id,
+            reply_to_message_id=message_id,
+        )
+
+    if not ok:
+        log.error("Business reply failed chat_id=%s from_id=%s bc_id=%s kind=%s", chat_id, from_id, bc_id, kind)
+        # Не отмечаем чат отвеченным, чтобы после исправления настроек бот мог ответить снова.
+        return
+
     if chat_id not in settings.get("answered_chats", []):
         settings.setdefault("answered_chats", []).append(chat_id)
         save_settings()
